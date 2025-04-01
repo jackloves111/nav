@@ -8,13 +8,10 @@ RUN npm install pnpm -g
 
 WORKDIR /build
 
-COPY ./package.json /build
-
-COPY ./pnpm-lock.yaml /build
+COPY . /build
 
 RUN pnpm install
-
-COPY . /build
+RUN npm install npm-run-all --save-dev
 
 RUN pnpm run build
 
