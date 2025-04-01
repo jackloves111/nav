@@ -1,8 +1,8 @@
 # build frontend
-FROM node AS web_image
+FROM node as web_image
 
 # 华为源
-# RUN npm config set registry https://repo.huaweicloud.com/repository/npm/
+RUN npm config set registry https://repo.huaweicloud.com/repository/npm/
 
 RUN npm install pnpm -g
 
@@ -10,8 +10,10 @@ WORKDIR /build
 
 COPY . /build
 
-RUN pnpm install
-RUN npm install npm-run-all --save-dev
+RUN pnpm config set registry https://repo.huaweicloud.com/repository/npm/ \
+    && pnpm store prune \
+    && pnpm install --force --reporter append-only \
+    && npm install npm-run-all --save-dev
 
 RUN pnpm run build
 
