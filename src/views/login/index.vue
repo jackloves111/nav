@@ -117,7 +117,7 @@ function handleChangeLanuage(value: Language) {
         </div> -->
 
         <div class="flex justify-center text-slate-300">
-          Powered By <a href="https://github.com/hslr-s/sun-panel" target="_blank" class="ml-[5px] text-slate-500">Sun-Panel</a>
+          淘宝店： <a href="https://item.taobao.com/item.htm?id=725282812681" target="_blank" class="ml-[5px] text-slate-500">爱上NAS爱上家</a>
         </div>
       </NForm>
     </NCard>

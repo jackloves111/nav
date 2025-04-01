@@ -37,19 +37,7 @@
     "title": "系统应用"
   },
   "apps": {
-    "about": {
-      "QQGroup": "QQ交流群：",
-      "QR": "二维码(推荐)",
-      "addQQGroupUrl": "点击添加",
-      "appName": "关于",
-      "author": "作者：",
-      "checkUpdate": "检查新版本",
-      "discussions": "交流社区：",
-      "donate": "🧧打赏",
-      "frontVersionText": "前端版本号",
-      "issue": "建议反馈：",
-      "viewUpdateLog": "点此查看更新说明"
-    },
+
     "baseSettings": {
       "appName": "风格设置",
       "bottomMargin": "下边距",
