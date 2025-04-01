@@ -53,7 +53,7 @@ const defaultSearchEngineList = ref<DeskModule.SearchBox.SearchEngine[]>([
 const defaultState: State = {
   currentSearchEngine: defaultSearchEngineList.value[0],
   searchEngineList: [] || defaultSearchEngineList,
-  newWindowOpen: false,
+  newWindowOpen: true,
 }
 
 const state = ref<State>({ ...defaultState })
