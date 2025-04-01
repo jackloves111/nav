@@ -37,19 +37,7 @@
     "title": "System Applications"
   },
   "apps": {
-    "about": {
-      "QQGroup": "QQ Group:",
-      "QR": "QR Code(recommend)",
-      "addQQGroupUrl": "Click to join",
-      "appName": "About",
-      "author": "Author:",
-      "checkUpdate": "Check for new version",
-      "discussions": "Discussions:",
-      "donate": "☕Donate",
-      "frontVersionText": "Front-end version number",
-      "issue": "Feedback:",
-      "viewUpdateLog": "Click here to view update log"
-    },
+
     "baseSettings": {
       "appName": "Style Settings",
       "bottomMargin": "Bottom margin",
