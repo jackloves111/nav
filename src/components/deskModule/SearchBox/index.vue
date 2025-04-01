@@ -67,15 +67,15 @@ const onBlur = (): void => {
 }
 
 function handleEngineClick() {
-  // 访客模式不允许修改
-  if (authStore.visitMode === VisitMode.VISIT_MODE_PUBLIC)
-    return
   searchSelectListShow.value = !searchSelectListShow.value
 }
 
 function handleEngineUpdate(engine: DeskModule.SearchBox.SearchEngine) {
   state.value.currentSearchEngine = engine
-  moduleConfig.saveToCloud(moduleConfigName, state.value)
+  // 只有非访客模式才保存到云端
+  if (authStore.visitMode !== VisitMode.VISIT_MODE_PUBLIC) {
+    moduleConfig.saveToCloud(moduleConfigName, state.value)
+  }
   searchSelectListShow.value = false
 }
 
