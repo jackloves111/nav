@@ -9,6 +9,7 @@ import { VisitMode } from '@/enums/auth'
 import SvgSrcBaidu from '@/assets/search_engine_svg/baidu.svg'
 import SvgSrcBing from '@/assets/search_engine_svg/bing.svg'
 import SvgSrcGoogle from '@/assets/search_engine_svg/google.svg'
+import SvgSrcTMDB from '@/assets/search_engine_svg/tmdb.svg'
 
 withDefaults(defineProps<{
   background?: string
@@ -47,6 +48,11 @@ const defaultSearchEngineList = ref<DeskModule.SearchBox.SearchEngine[]>([
     iconSrc: SvgSrcBing,
     title: 'Bing',
     url: 'https://www.bing.com/search?q=%s',
+  },
+  {
+    iconSrc: SvgSrcTMDB,
+    title: 'TMDB',
+    url: 'https://www.themoviedb.org/search?query=%s',
   },
 ])
 
