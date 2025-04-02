@@ -16,19 +16,19 @@ const authStore = useAuthStore()
 
 // 默认图标背景色
 const defautSwatchesBackground = [
-  '#00000000',
-  '#000000',
-  '#ffffff',
-  '#18A058',
-  '#2080F0',
-  '#F0A020',
-  'rgba(208, 48, 80, 1)',
-  '#C418D1FF',
+  '#00000000',  // 透明
+  '#ffffff',    // 白色
+  '#F5F5F5',    // 淡灰色
+  '#607D8B',    // 蓝灰色
+  '#4DB6AC',    // 薄荷绿
+  '#9575CD',    // 薰衣草紫
+  '#EF5350',    // 珊瑚红
+  '#FFB300',    // 琥珀色
 ]
 
 const initData: Panel.ItemIcon = {
   itemType: 2,
-  backgroundColor: '#2a2a2a6b',
+  backgroundColor: '#ffffff',
 }
 
 const itemIconInfo = computed({
