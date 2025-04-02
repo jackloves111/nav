@@ -26,14 +26,20 @@ func InitRouters(addr string) error {
 		webPath := "./web"
 		router.StaticFile("/", webPath+"/index.html")
 		router.Static("/assets", webPath+"/assets")
-		router.Static("/custom", webPath+"/custom")
+		router.Static("/custom", "./conf/custom")
 		router.StaticFile("/favicon.ico", webPath+"/favicon.ico")
 		router.StaticFile("/favicon.svg", webPath+"/favicon.svg")
 	}
 
 	// 上传的文件
 	sourcePath := global.Config.GetValueString("base", "source_path")
-	router.Static(sourcePath[1:], sourcePath)
+	// 确保路径以/开头以便于后续处理
+	if sourcePath[0] != '/' {
+		sourcePath = "/" + sourcePath
+	}
+	
+	// 从/conf目录提供文件但保持原有的web访问路径
+	router.Static(sourcePath[1:], "." + sourcePath)
 
 	global.Logger.Info("Sun-Panel is Started.  Listening and serving HTTP on ", addr)
 	return router.Run(addr)
