@@ -6,6 +6,46 @@
 	<meta content="yes" name="apple-mobile-web-app-capable"/>
 	<link rel="apple-touch-icon" href="/favicon.ico">
 	<link rel="stylesheet"  href="/custom/index.css">
+	<style>
+		/* 图标鼠标变色 - 跑马灯特效 */
+		.icon-info-box .rounded-2xl,
+		.icon-small-box .rounded-2xl {
+		position: relative;    /* 确保伪元素定位正确 */
+		overflow: hidden;      /* 隐藏超出部分的边框 */
+		transition: all 0.3s ease; /* 平滑过渡效果 */
+		}
+		.icon-info-box .rounded-2xl::before,
+		.icon-small-box .rounded-2xl::before {
+		content: "";          /* 伪元素内容为空 */
+		position: absolute;   /* 绝对定位 */
+		top: 0;
+		right: 100%;          /* 初始位置在容器外部 */
+		bottom: 0;
+		width: 100%;          /* 宽度与容器相同 */
+		height: 2px;          /* 边框高度 */
+		background: rgba(255, 0, 0, 0.7); /* 边框颜色，这里使用红色，你可以根据需要更改 */
+		transition: all 0.5s ease; /* 平滑过渡效果 */
+		}
+		/* 悬停时的动画效果 */
+		.icon-info-box .rounded-2xl:hover::before,
+		.icon-small-box .rounded-2xl:hover::before {
+		right: 0;             /* 鼠标悬停时移动到容器内部，形成跑马灯效果 */
+		}
+		/* 可选：添加离开时的过渡效果 */
+		.icon-info-box .rounded-2xl:not(:hover)::before,
+		.icon-small-box .rounded-2xl:not(:hover)::before {
+		transition: all 1s ease; /* 离开时过渡时间稍长，使效果更自然 */
+		right: 100%;            /* 离开时回到初始位置 */
+		}
+		/* 定义新光标样式 */
+		body {
+		cursor: url(/img_mouse/01.png), default !important;
+		}
+		/* 自定义悬浮光标 */
+		.cursor-pointer {
+		cursor: url(/img_mouse/02.png), auto !important;
+		}
+	</style>
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
 	<title>Sun-Panel</title>
