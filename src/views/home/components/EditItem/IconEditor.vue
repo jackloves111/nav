@@ -16,9 +16,10 @@ const authStore = useAuthStore()
 
 // 默认图标背景色
 const defautSwatchesBackground = [
-  '#00000000',  // 透明
+  '#00000000',  // 全透明
+  '#2a2a2a6b',  // 半透明
   '#ffffff',    // 白色
-  '#F5F5F5',    // 淡灰色
+  '#000000',    // 黑色
   '#607D8B',    // 蓝灰色
   '#4DB6AC',    // 薄荷绿
   '#9575CD',    // 薰衣草紫
