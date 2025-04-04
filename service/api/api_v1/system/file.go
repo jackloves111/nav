@@ -55,8 +55,10 @@ func (a *FileApi) UploadImg(c *gin.Context) {
 		// 像数据库添加记录
 		mFile := models.File{}
 		mFile.AddFile(userInfo.ID, f.Filename, fileExt, filepath)
+		// 去除./conf前缀，只保留/uploads/年/月/日/文件名
+		urlPath := strings.Replace(filepath, "./conf", "", 1)
 		apiReturn.SuccessData(c, gin.H{
-			"imageUrl": filepath[1:],
+			"imageUrl": urlPath,
 		})
 	}
 }
@@ -89,7 +91,9 @@ func (a *FileApi) UploadFiles(c *gin.Context) {
 			// 像数据库添加记录
 			mFile := models.File{}
 			mFile.AddFile(userInfo.ID, f.Filename, fileExt, filepath)
-			succMap[f.Filename] = filepath[1:]
+			// 去除./conf前缀，只保留/uploads/年/月/日/文件名
+			urlPath := strings.Replace(filepath, "./conf", "", 1)
+			succMap[f.Filename] = urlPath
 		}
 	}
 
@@ -110,8 +114,10 @@ func (a *FileApi) GetList(c *gin.Context) {
 
 	data := []map[string]interface{}{}
 	for _, v := range list {
+		// 去除./conf前缀，只保留/uploads/年/月/日/文件名
+		urlPath := strings.Replace(v.Src, "./conf", "", 1)
 		data = append(data, map[string]interface{}{
-			"src":        v.Src[1:],
+			"src":        urlPath,
 			"fileName":   v.FileName,
 			"id":         v.ID,
 			"createTime": v.CreatedAt,
