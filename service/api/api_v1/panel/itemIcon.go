@@ -268,6 +268,12 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	// 去除./conf前缀，只保留/uploads/年/月/日/文件名
-	resp.IconUrl = strings.Replace(imgInfo.Name(), "./conf", "", 1)
+	// 修复路径中可能出现的多余斜杠问题
+	pathWithoutPrefix := strings.Replace(imgInfo.Name(), "./conf", "", 1)
+	// 确保路径以单个斜杠开头，避免出现双斜杠
+	if strings.HasPrefix(pathWithoutPrefix, "//") {
+		pathWithoutPrefix = "/" + strings.TrimPrefix(pathWithoutPrefix, "//")
+	}
+	resp.IconUrl = pathWithoutPrefix
 	apiReturn.SuccessData(c, resp)
 }
