@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<Prop>(), {
   size: 70,
 })
 
-const defaultBackground = '#2a2a2a6b'
+const defaultBackground = '#ffffff'
 
 const calculateLuminance = (color: string) => {
   const hex = color.replace(/^#/, '')

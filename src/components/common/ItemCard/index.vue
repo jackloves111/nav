@@ -13,7 +13,7 @@ interface Prop {
 
 const props = withDefaults(defineProps<Prop>(), {})
 
-const defaultBackground = '#2a2a2a6b'
+const defaultBackground = '#ffffff'
 const propClass = ref(props.class)
 </script>
 
