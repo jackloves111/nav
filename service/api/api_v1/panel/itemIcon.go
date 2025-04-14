@@ -195,7 +195,7 @@ func (a *ItemIcon) SaveSort(c *gin.Context) {
 	apiReturn.Success(c)
 }
 
-// 支持获取并直接下载对方网站图标到服务器
+// 支持获取并直接下载对方网站图标到服务器，同时获取标题和描述信息
 func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	userInfo, _ := base.GetCurrentUserInfo(c)
 	req := panelApiStructs.ItemIconGetSiteFaviconReq{}
@@ -206,11 +206,24 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	}
 	resp := panelApiStructs.ItemIconGetSiteFaviconResp{}
 	fullUrl := ""
-	if iconUrl, err := siteFavicon.GetOneFaviconURL(req.Url); err != nil {
-		apiReturn.Error(c, "acquisition failed: get ico error:"+err.Error())
+	
+	// 获取网站信息（图标、标题和描述）
+	webInfo, err := siteFavicon.GetWebsiteInfo(req.Url)
+	if err != nil {
+		apiReturn.Error(c, "acquisition failed: get website info error:"+err.Error())
 		return
+	}
+	
+	// 设置标题和描述
+	resp.Title = webInfo.Title
+	resp.Description = webInfo.Description
+	
+	// 如果有图标，使用第一个
+	if len(webInfo.Icons) > 0 {
+		fullUrl = webInfo.Icons[0]
 	} else {
-		fullUrl = iconUrl
+		apiReturn.Error(c, "acquisition failed: no favicon found")
+		return
 	}
 
 	parsedURL, err := url.Parse(req.Url)

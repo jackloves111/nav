@@ -114,11 +114,20 @@ const handleValidateButtonClick = (e: MouseEvent) => {
 async function getIconByUrl(url: string, loadingIndex: number) {
   getIconLoading.value[loadingIndex] = true
   try {
-    const { code, data } = await getSiteFavicon<{ iconUrl: string }>(url)
+    const { code, data } = await getSiteFavicon<{ iconUrl: string, title: string, description: string }>(url)
     if (code === 0) {
       model.value.icon = {
         itemType: 2,
         src: data.iconUrl,
+        backgroundColor: '#ffffff',
+      }
+      // 如果标题为空，则不更新标题
+      if (data.title && !model.value.title) {
+        model.value.title = data.title
+      }
+      // 如果描述为空，则不更新描述
+      if (data.description && !model.value.description) {
+        model.value.description = data.description
       }
     }
     else {

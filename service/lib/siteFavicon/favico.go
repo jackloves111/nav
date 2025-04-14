@@ -45,6 +45,30 @@ func GetOneFaviconURL(urlStr string) (string, error) {
 	return "", fmt.Errorf("not found ico")
 }
 
+// GetWebsiteInfo 获取网站的图标、标题和描述信息
+func GetWebsiteInfo(urlStr string) (WebsiteInfo, error) {
+	webInfo, err := getWebsiteInfo(urlStr)
+	if err != nil {
+		return WebsiteInfo{}, err
+	}
+	
+	// 处理图标URL，确保它们是完整的URL
+	processedIcons := make([]string, 0)
+	for _, v := range webInfo.Icons {
+		// 标准的路径地址
+		if IsHTTPURL(v) {
+			processedIcons = append(processedIcons, v)
+		} else {
+			urlInfo, _ := url.Parse(urlStr)
+			fullUrl := urlInfo.Scheme + "://" + urlInfo.Host + "/" + strings.TrimPrefix(v, "/")
+			processedIcons = append(processedIcons, fullUrl)
+		}
+	}
+	
+	webInfo.Icons = processedIcons
+	return webInfo, nil
+}
+
 // 获取远程文件的大小
 func GetRemoteFileSize(url string) (int64, error) {
 	resp, err := http.Head(url)
@@ -129,13 +153,30 @@ func GetOneFaviconURLAndUpload(urlStr string) (string, bool) {
 	return "", false
 }
 
+// WebsiteInfo 存储网站的图标、标题和描述信息
+type WebsiteInfo struct {
+	Icons       []string
+	Title       string
+	Description string
+}
+
 func getFaviconURL(url string) ([]string, error) {
-	var icons []string
-	icons = make([]string, 0)
+	webInfo, err := getWebsiteInfo(url)
+	if err != nil {
+		return nil, err
+	}
+	return webInfo.Icons, nil
+}
+
+// 获取网站的图标、标题和描述信息
+func getWebsiteInfo(url string) (WebsiteInfo, error) {
+	var webInfo WebsiteInfo
+	webInfo.Icons = make([]string, 0)
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return icons, err
+		return webInfo, err
 	}
 
 	// 设置User-Agent头字段，模拟浏览器请求
@@ -143,19 +184,31 @@ func getFaviconURL(url string) ([]string, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return icons, err
+		return webInfo, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return icons, errors.New("HTTP request failed with status code " + strconv.Itoa(resp.StatusCode))
+		return webInfo, errors.New("HTTP request failed with status code " + strconv.Itoa(resp.StatusCode))
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return icons, err
+		return webInfo, err
 	}
+
+	// 获取网页标题
+	webInfo.Title = doc.Find("title").Text()
+
+	// 获取网页描述
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		if name, _ := s.Attr("name"); strings.ToLower(name) == "description" {
+			if content, exists := s.Attr("content"); exists {
+				webInfo.Description = content
+			}
+		}
+	})
 
 	// 查找所有link标签，筛选包含rel属性为"icon"的标签
 	doc.Find("link").Each(func(i int, s *goquery.Selection) {
@@ -163,14 +216,13 @@ func getFaviconURL(url string) ([]string, error) {
 		href, _ := s.Attr("href")
 
 		if strings.Contains(rel, "icon") && href != "" {
-			// fmt.Println(href)
-			icons = append(icons, href)
+			webInfo.Icons = append(webInfo.Icons, href)
 		}
 	})
 
-	if len(icons) == 0 {
-		return icons, errors.New("favicon not found on the page")
+	if len(webInfo.Icons) == 0 {
+		return webInfo, errors.New("favicon not found on the page")
 	}
 
-	return icons, nil
+	return webInfo, nil
 }
