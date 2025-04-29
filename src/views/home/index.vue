@@ -77,7 +77,7 @@ function handleItemClick(itemGroupIndex: number, item: Panel.ItemInfo) {
   let jumpUrl = ''
 
   if (item)
-    jumpUrl = (panelState.networkMode === PanelStateNetworkModeEnum.lan ? item.lanUrl : item.url) as string
+    jumpUrl = (panelState.networkMode === PanelStateNetworkModeEnum.lan ? item.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname) : item.url) as string
   if (item.lanUrl === '')
     jumpUrl = item.url
 
@@ -130,7 +130,7 @@ function handleRightMenuSelect(key: string | number) {
       break
     case 'openLanUrl':
       if (currentRightSelectItem.value && currentRightSelectItem.value.lanUrl)
-        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value.lanUrl, currentRightSelectItem.value?.title)
+        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname), currentRightSelectItem.value?.title)
       break
     case 'edit':
       // 这里有个奇怪的问题，如果不使用{...}的方式 父组件的值会同步修改 标记一下
