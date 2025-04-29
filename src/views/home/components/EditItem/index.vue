@@ -46,11 +46,27 @@ const rules: FormRules = {
     trigger: 'blur',
     message: t('form.required'),
   },
+  // 修改url规则
   url: {
-    required: true,
     trigger: 'blur',
-    type: 'string',
-    message: t('form.required'),
+    validator(rule, value, callback) {
+      if (!value && !model.value.lanUrl) {
+        callback(new Error(t('form.requiredEither')))
+      } else {
+        callback()
+      }
+    }
+  },
+  // 添加lanUrl规则
+  lanUrl: {
+    trigger: 'blur', 
+    validator(rule, value, callback) {
+      if (!value && !model.value.url) {
+        callback(new Error(t('form.requiredEither')))
+      } else {
+        callback()
+      }
+    }
   },
   // itemIconGroupId: {
   //   required: true,
