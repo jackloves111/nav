@@ -74,12 +74,20 @@ function handleItemClick(itemGroupIndex: number, item: Panel.ItemInfo) {
     return
   }
 
-  let jumpUrl = ''
+  if (!item) return
 
-  if (item)
-    jumpUrl = (panelState.networkMode === PanelStateNetworkModeEnum.lan ? item.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname) : item.url) as string
-  if (item.lanUrl === '')
-    jumpUrl = item.url
+  // 优先处理两个URL都为空的情况
+  if (!item.lanUrl && !item.url) {
+    ms.error(t('panelHome.urlMissingError'))
+    return
+  }
+
+  // 根据网络模式选择可用URL
+  const baseUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan 
+    ? item.lanUrl || item.url
+    : item.url || item.lanUrl
+
+  const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
 
   openPage(item.openMethod, jumpUrl, item.title)
 }
@@ -114,12 +122,16 @@ function updateItemIconGroupByNet(itemIconGroupIndex: number, itemIconGroupId: n
 function handleRightMenuSelect(key: string | number) {
   dropdownShow.value = false
   // console.log(currentRightSelectItem, key)
-  let jumpUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan ? 
-  currentRightSelectItem.value?.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname) : 
-  currentRightSelectItem.value?.url;
+  if (!currentRightSelectItem.value?.lanUrl && !currentRightSelectItem.value?.url) {
+    ms.error(t('panelHome.urlMissingError'))
+    return
+  }
 
-  if (currentRightSelectItem.value?.lanUrl === '')
-      jumpUrl = currentRightSelectItem.value.url;
+  const baseUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan
+    ? currentRightSelectItem.value?.lanUrl || currentRightSelectItem.value?.url
+    : currentRightSelectItem.value?.url || currentRightSelectItem.value?.lanUrl
+
+  const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
   switch (key) {
     case 'newWindows':
       window.open(jumpUrl)
