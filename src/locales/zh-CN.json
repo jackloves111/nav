@@ -201,8 +201,7 @@
     }
   },
   "form": {
-    "required": "必填项",
-    "requiredEither": "外网地址或内网地址必须填写一个"
+    "required": "必填项"
   },
   "iconItem": {
     "add": "添加项目",

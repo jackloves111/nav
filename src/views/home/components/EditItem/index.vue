@@ -51,7 +51,7 @@ const rules: FormRules = {
     trigger: 'blur',
     validator(rule, value, callback) {
       if (!value && !model.value.lanUrl) {
-        callback(new Error(t('form.requiredEither')))
+        callback(new Error(t('外网地址或内网地址必须填写其中一个')))
       } else {
         callback()
       }
@@ -62,7 +62,7 @@ const rules: FormRules = {
     trigger: 'blur', 
     validator(rule, value, callback) {
       if (!value && !model.value.url) {
-        callback(new Error(t('form.requiredEither')))
+        callback(new Error(t('外网地址或内网地址必须填写其中一个')))
       } else {
         callback()
       }
