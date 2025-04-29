@@ -37,7 +37,9 @@ export function defaultState(): Panel.State {
   return {
     rightSiderCollapsed: false,
     leftSiderCollapsed: false,
-    networkMode: PanelStateNetworkModeEnum.wan,
+    networkMode: PanelStateNetworkModeEnum.lan,
+    // - 优先读取本地存储（localStorage/sessionStorage）
+    // - 当本地无存储记录时，自动应用内网模式默认值
     panelConfig: { ...defaultStatePanelConfig() },
   }
 }
