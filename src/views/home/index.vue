@@ -114,9 +114,12 @@ function updateItemIconGroupByNet(itemIconGroupIndex: number, itemIconGroupId: n
 function handleRightMenuSelect(key: string | number) {
   dropdownShow.value = false
   // console.log(currentRightSelectItem, key)
-  let jumpUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan ? currentRightSelectItem.value?.lanUrl : currentRightSelectItem.value?.url
+  let jumpUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan ? 
+  currentRightSelectItem.value?.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname) : 
+  currentRightSelectItem.value?.url;
+
   if (currentRightSelectItem.value?.lanUrl === '')
-    jumpUrl = currentRightSelectItem.value.url
+      jumpUrl = currentRightSelectItem.value.url;
   switch (key) {
     case 'newWindows':
       window.open(jumpUrl)
