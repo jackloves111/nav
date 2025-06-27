@@ -142,6 +142,11 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 预加载所有搜索引擎图标 -->
+    <div class="hidden">
+      <NAvatar v-for="item in defaultSearchEngineList" :key="item.title" :src="item.iconSrc" style="background-color: transparent;" :size="20" />
+    </div>
+
     <!-- 搜索引擎选择 -->
     <div v-if="searchSelectListShow" class="w-full mt-[10px] rounded-xl p-[10px]" :style="{ background }">
       <div class="flex items-center">
