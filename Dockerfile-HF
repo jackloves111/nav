@@ -4,8 +4,8 @@ FROM golang:1.23.7-alpine3.20 AS builder
 # 设置工作目录
 WORKDIR /app
 
-# 将本地应用代码复制到容器内的工作目录
-COPY . .
+# 将hello_favicon项目代码复制到容器内的工作目录
+COPY hello_favicon/ .
 
 #安装CA证书（需要请求第三方https接口）、设置代理、安装依赖、构建二进制文件
 #-ldflags="-s -w":-s：省略符号表,-w：省略 DWARF 调试信息, 可进一步缩小编译后的二进制文件体积
@@ -19,8 +19,9 @@ RUN apk add --no-cache ca-certificates upx && \
 # 运行阶段
 FROM scratch
 WORKDIR /app
-#复制必要文件到镜像里面
-COPY . .
+#复制必要文件到镜像里面（静态文件和模板）
+COPY hello_favicon/ .
+
 #复制CA证书
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 #复制主程序
