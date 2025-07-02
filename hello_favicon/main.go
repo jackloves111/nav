@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
 	"image"
@@ -63,7 +64,21 @@ var httpClient = &http.Client{
 }
 
 func main() {
+	log.Println("[Hello Favicon] 服务启动中...")
+	
 	r := gin.Default()
+
+	// 添加请求日志中间件
+	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[Hello Favicon] %v | %3d | %13v | %15s | %-7s %#v\n",
+			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+			param.StatusCode,
+			param.Latency,
+			param.ClientIP,
+			param.Method,
+			param.Path,
+		)
+	}))
 
 	// 配置CORS
 	r.Use(cors.New(cors.Config{
@@ -88,6 +103,11 @@ func main() {
 	// 简化的GET API，支持查询参数
 	r.GET("/api", getWebsiteInfoByQuery)
 
+	log.Println("[Hello Favicon] 服务已启动，监听地址: 127.0.0.1:3000")
+	log.Println("[Hello Favicon] API端点:")
+	log.Println("[Hello Favicon]   - POST /api/favicon (完整favicon信息)")
+	log.Println("[Hello Favicon]   - GET /api?<url> (简化网站信息)")
+	
 	// 只监听内部地址，不对外暴露
 	r.Run("127.0.0.1:3000")
 }
@@ -105,32 +125,43 @@ func getFavicon(c *gin.Context) {
 	targetURL := requestData.URL
 	if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
 		targetURL = "https://" + targetURL
+		log.Printf("[Hello Favicon] URL补全协议: %s", targetURL)
 	}
 
 	// 解析URL
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
+		log.Printf("[Hello Favicon] 错误: URL解析失败 - %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
 		return
 	}
+	
+	log.Printf("[Hello Favicon] 开始获取网站信息，目标域名: %s", parsedURL.Hostname())
 
 	// 创建带有User-Agent的请求
 	req, err := http.NewRequest("GET", targetURL, nil)
 	if err != nil {
+		log.Printf("[Hello Favicon] 错误: 创建HTTP请求失败 - %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
 		return
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
+	log.Printf("[Hello Favicon] 发送HTTP请求到: %s", targetURL)
+	
 	// 获取HTML
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		log.Printf("[Hello Favicon] 错误: HTTP请求失败 - %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch website: %v", err)})
 		return
 	}
 	defer resp.Body.Close()
 
+	log.Printf("[Hello Favicon] 收到HTTP响应，状态码: %d", resp.StatusCode)
+	
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("[Hello Favicon] 错误: 网站返回非200状态码: %d", resp.StatusCode)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Website returned status code: %d", resp.StatusCode),
 		})
@@ -140,20 +171,29 @@ func getFavicon(c *gin.Context) {
 	// 读取并解析HTML
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("[Hello Favicon] 错误: 读取HTML内容失败 - %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read HTML content"})
 		return
 	}
 
+	log.Printf("[Hello Favicon] 成功读取HTML内容，大小: %d bytes", len(bodyBytes))
+	
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyBytes))
 	if err != nil {
+		log.Printf("[Hello Favicon] 错误: HTML解析失败 - %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse HTML"})
 		return
 	}
 
+	log.Println("[Hello Favicon] HTML解析成功，开始提取网站信息")
+	
 	// 获取网站标题
 	title := doc.Find("title").Text()
 	if title == "" {
 		title = parsedURL.Hostname()
+		log.Printf("[Hello Favicon] 未找到标题，使用域名: %s", title)
+	} else {
+		log.Printf("[Hello Favicon] 提取到网站标题: %s", title)
 	}
 
 	// 获取网站描述
@@ -165,6 +205,12 @@ func getFavicon(c *gin.Context) {
 			}
 		}
 	})
+	
+	if description != "" {
+		log.Printf("[Hello Favicon] 提取到网站描述: %s", description)
+	} else {
+		log.Println("[Hello Favicon] 未找到网站描述")
+	}
 
 	// 寻找所有可能的favicon URLs
 	faviconURLs := findFavicons(doc, parsedURL)
@@ -302,7 +348,7 @@ func fetchWithRetry(targetURL string, maxRetries int, retryDelay time.Duration) 
 		if err != nil {
 			lastErr = err
 			if attempt < maxRetries {
-				fmt.Printf("请求失败 (尝试 %d/%d): %v，%v秒后重试...\n", attempt+1, maxRetries+1, err, retryDelay.Seconds())
+				log.Printf("[Hello Favicon] 请求失败 (尝试 %d/%d): %v，%v秒后重试...", attempt+1, maxRetries+1, err, retryDelay.Seconds())
 				time.Sleep(retryDelay)
 				continue
 			}
@@ -314,7 +360,7 @@ func fetchWithRetry(targetURL string, maxRetries int, retryDelay time.Duration) 
 			resp.Body.Close()
 			lastErr = fmt.Errorf("服务器返回状态码: %d", resp.StatusCode)
 			if attempt < maxRetries {
-				fmt.Printf("收到 %d 状态码 (尝试 %d/%d)，%v秒后重试...\n", resp.StatusCode, attempt+1, maxRetries+1, retryDelay.Seconds())
+				log.Printf("[Hello Favicon] 收到 %d 状态码 (尝试 %d/%d)，%v秒后重试...", resp.StatusCode, attempt+1, maxRetries+1, retryDelay.Seconds())
 				time.Sleep(retryDelay)
 				continue
 			}
@@ -330,12 +376,15 @@ func fetchWithRetry(targetURL string, maxRetries int, retryDelay time.Duration) 
 
 // 获取并解码图像
 func fetchAndDecodeImage(imageURL string) (image.Image, bool) {
+	log.Printf("[Hello Favicon] 开始获取图像: %s", imageURL)
+	
 	// 判断是否是 Base64 Data URL
 	if strings.HasPrefix(imageURL, "data:image/") {
+		log.Println("[Hello Favicon] 检测到Base64 Data URL，开始解码")
 		// 按逗号分割 Data URL，提取 Base64 部分
 		parts := strings.SplitN(imageURL, ",", 2)
 		if len(parts) != 2 {
-			fmt.Println("无效的 Data URL 格式")
+			log.Println("[Hello Favicon] 错误: 无效的 Data URL 格式")
 			return nil, false
 		}
 
@@ -345,60 +394,70 @@ func fetchAndDecodeImage(imageURL string) (image.Image, bool) {
 		// 解码 Base64
 		imgData, err := base64.StdEncoding.DecodeString(base64Data)
 		if err != nil {
-			fmt.Println("Base64 解码失败:", err)
+			log.Printf("[Hello Favicon] 错误: Base64 解码失败 - %v", err)
 			return nil, false
 		}
 
 		// 解码为图像
 		img, _, err := image.Decode(bytes.NewReader(imgData))
 		if err != nil {
-			fmt.Println("图像解码失败:", err)
+			log.Printf("[Hello Favicon] 错误: 图像解码失败 - %v", err)
 			return nil, false
 		}
+		log.Println("[Hello Favicon] Base64图像解码成功")
 		return img, true
 	}
 
 	// 使用重试机制发送请求
+	log.Printf("[Hello Favicon] 发送HTTP请求获取图像: %s", imageURL)
 	resp, err := fetchWithRetry(imageURL, 2, 1*time.Second)
 	if err != nil {
-		fmt.Printf("获取图像失败 %s: %v\n", imageURL, err)
+		log.Printf("[Hello Favicon] 错误: 获取图像失败 %s - %v", imageURL, err)
 		return nil, false
 	}
 	defer resp.Body.Close()
 
+	log.Printf("[Hello Favicon] 图像请求成功，Content-Type: %s", resp.Header.Get("Content-Type"))
+	
 	// 读取响应体
 	imgData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("读取图像数据失败: %v\n", err)
+		log.Printf("[Hello Favicon] 错误: 读取图像数据失败 - %v", err)
 		return nil, false
 	}
+	
+	log.Printf("[Hello Favicon] 成功读取图像数据，大小: %d bytes", len(imgData))
 
 	// 检查是否为 SVG
 	contentType := resp.Header.Get("Content-Type")
 	if strings.Contains(contentType, "image/svg+xml") || strings.HasSuffix(strings.ToLower(imageURL), ".svg") {
+		log.Println("[Hello Favicon] 检测到SVG格式，开始转换为位图")
 		// 使用 rasterx 将 SVG 转换为光栅图像
 		//svgImg, err := rasterx.SVGToImage(, 128, 128)
 		svgImg, err := renderSVGToImage(imgData)
 		if err != nil {
-			fmt.Printf("SVG 解码失败: %v\n", err)
+			log.Printf("[Hello Favicon] 错误: SVG 解码失败 - %v", err)
 			return nil, false
 		}
+		log.Println("[Hello Favicon] SVG转换成功")
 		return svgImg, true
 	}
 
 	// 处理ICO文件
 	_, format, err := image.DecodeConfig(bytes.NewReader(imgData))
+	log.Printf("[Hello Favicon] 检测到图像格式: %s", format)
 	if !(format == "png" || format == "jpeg" || format == "ico") {
-		fmt.Printf("忽略非支持的格式: %v %v\n", err, format)
+		log.Printf("[Hello Favicon] 错误: 忽略非支持的格式 - %v, 格式: %s", err, format)
 		return nil, false
 	}
 	// 尝试解码图像
 	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
-		fmt.Printf("解码图像失败: %v\n", err)
+		log.Printf("[Hello Favicon] 错误: 解码图像失败 - %v", err)
 		return nil, false
 	}
 
+	log.Printf("[Hello Favicon] 图像解码成功，格式: %s", format)
 	return img, true
 }
 
@@ -519,7 +578,10 @@ func getWebsiteInfoByQuery(c *gin.Context) {
 	// 从查询参数获取URL，只支持空参数名
 	targetURL := c.Query("")
 	
+	log.Printf("[Hello Favicon] 收到网站信息获取请求，原始URL: %s", targetURL)
+	
 	if targetURL == "" {
+		log.Println("[Hello Favicon] 错误: URL参数为空")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "URL parameter is required"})
 		return
 	}
@@ -588,30 +650,44 @@ func getWebsiteInfoByQuery(c *gin.Context) {
 	})
 
 	// 寻找favicon URL
+	log.Println("[Hello Favicon] 开始查找favicon URLs")
 	faviconURLs := findFavicons(doc, parsedURL)
+	log.Printf("[Hello Favicon] 找到 %d 个候选favicon URLs: %v", len(faviconURLs), faviconURLs)
+	
 	faviconURL := ""
 	
 	if len(faviconURLs) > 0 {
 		// 尝试获取第一个有效的favicon
-		for _, url := range faviconURLs {
+		log.Println("[Hello Favicon] 开始验证favicon URLs")
+		for i, url := range faviconURLs {
+			log.Printf("[Hello Favicon] 尝试获取favicon (%d/%d): %s", i+1, len(faviconURLs), url)
 			_, success := fetchAndDecodeImage(url)
 			if success {
 				faviconURL = url
+				log.Printf("[Hello Favicon] 成功获取favicon: %s", url)
 				break
+			} else {
+				log.Printf("[Hello Favicon] favicon获取失败: %s", url)
 			}
 		}
+	} else {
+		log.Println("[Hello Favicon] 未找到任何favicon候选URLs")
 	}
 	
 	// 如果没有找到有效的favicon，使用生成的URL
 	if faviconURL == "" {
 		faviconURL = fmt.Sprintf("http://127.0.0.1:3000/static/favicon.svg")
+		log.Printf("[Hello Favicon] 使用默认favicon: %s", faviconURL)
 	}
 
 	// 返回简化的JSON格式
-	c.JSON(http.StatusOK, APIResponse{
+	response := APIResponse{
 		Title:       title,
 		Description: description,
 		URL:         targetURL,
 		FaviconURL:  faviconURL,
-	})
+	}
+	
+	log.Printf("[Hello Favicon] 成功处理请求，返回结果: Title=%s, FaviconURL=%s", title, faviconURL)
+	c.JSON(http.StatusOK, response)
 }
