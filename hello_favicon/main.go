@@ -33,13 +33,7 @@ type FaviconResponse struct {
 	Favicons    map[string]string `json:"favicons"` // 尺寸 -> base64编码
 }
 
-// APIResponse 简化的API响应结构
-type APIResponse struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	URL         string `json:"url"`
-	FaviconURL  string `json:"faviconUrl"`
-}
+
 
 // 默认的HTTP客户端
 var httpClient = &http.Client{
@@ -100,13 +94,10 @@ func main() {
 
 	// Favicon API
 	r.POST("/api/favicon", getFavicon)
-	// 简化的GET API，支持查询参数
-	r.GET("/api", getWebsiteInfoByQuery)
 
 	log.Println("[Hello Favicon] 服务已启动，监听地址: 127.0.0.1:3000")
 	log.Println("[Hello Favicon] API端点:")
 	log.Println("[Hello Favicon]   - POST /api/favicon (完整favicon信息)")
-	log.Println("[Hello Favicon]   - GET /api?<url> (简化网站信息)")
 	
 	// 只监听内部地址，不对外暴露
 	r.Run("127.0.0.1:3000")
@@ -571,123 +562,4 @@ func drawInitial(img *image.RGBA, initial string, centerX, centerY int, color co
 			img.Set(centerX, centerY+i, color)
 		}
 	}
-}
-
-// getWebsiteInfoByQuery 处理GET请求，通过查询参数获取网站信息
-func getWebsiteInfoByQuery(c *gin.Context) {
-	// 从查询参数获取URL，只支持空参数名
-	targetURL := c.Query("")
-	
-	log.Printf("[Hello Favicon] 收到网站信息获取请求，原始URL: %s", targetURL)
-	
-	if targetURL == "" {
-		log.Println("[Hello Favicon] 错误: URL参数为空")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "URL parameter is required"})
-		return
-	}
-
-	if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
-		targetURL = "https://" + targetURL
-	}
-
-	// 解析URL
-	parsedURL, err := url.Parse(targetURL)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
-		return
-	}
-
-	// 创建带有User-Agent的请求
-	req, err := http.NewRequest("GET", targetURL, nil)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-
-	// 获取HTML
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch website: %v", err)})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintf("Website returned status code: %d", resp.StatusCode),
-		})
-		return
-	}
-
-	// 读取并解析HTML
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read HTML content"})
-		return
-	}
-
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyBytes))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse HTML"})
-		return
-	}
-
-	// 获取网站标题
-	title := doc.Find("title").Text()
-	if title == "" {
-		title = parsedURL.Hostname()
-	}
-
-	// 获取网站描述
-	description := ""
-	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
-		if name, _ := s.Attr("name"); strings.ToLower(name) == "description" {
-			if desc, exists := s.Attr("content"); exists {
-				description = desc
-			}
-		}
-	})
-
-	// 寻找favicon URL
-	log.Println("[Hello Favicon] 开始查找favicon URLs")
-	faviconURLs := findFavicons(doc, parsedURL)
-	log.Printf("[Hello Favicon] 找到 %d 个候选favicon URLs: %v", len(faviconURLs), faviconURLs)
-	
-	faviconURL := ""
-	
-	if len(faviconURLs) > 0 {
-		// 尝试获取第一个有效的favicon
-		log.Println("[Hello Favicon] 开始验证favicon URLs")
-		for i, url := range faviconURLs {
-			log.Printf("[Hello Favicon] 尝试获取favicon (%d/%d): %s", i+1, len(faviconURLs), url)
-			_, success := fetchAndDecodeImage(url)
-			if success {
-				faviconURL = url
-				log.Printf("[Hello Favicon] 成功获取favicon: %s", url)
-				break
-			} else {
-				log.Printf("[Hello Favicon] favicon获取失败: %s", url)
-			}
-		}
-	} else {
-		log.Println("[Hello Favicon] 未找到任何favicon候选URLs")
-	}
-	
-	// 如果没有找到有效的favicon，使用生成的URL
-	if faviconURL == "" {
-		faviconURL = fmt.Sprintf("http://127.0.0.1:3000/static/favicon.png")
-		log.Printf("[Hello Favicon] 使用默认favicon: %s", faviconURL)
-	}
-
-	// 返回简化的JSON格式
-	response := APIResponse{
-		Title:       title,
-		Description: description,
-		URL:         targetURL,
-		FaviconURL:  faviconURL,
-	}
-	
-	log.Printf("[Hello Favicon] 成功处理请求，返回结果: Title=%s, FaviconURL=%s", title, faviconURL)
-	c.JSON(http.StatusOK, response)
 }

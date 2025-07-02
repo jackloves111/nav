@@ -1,12 +1,15 @@
 package panel
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sun-panel/api/api_v1/common/apiData/commonApiStructs"
 	"sun-panel/api/api_v1/common/apiData/panelApiStructs"
@@ -207,7 +210,6 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	resp := panelApiStructs.ItemIconGetSiteFaviconResp{}
-	fullUrl := ""
 	
 	// 首先检查Hello Favicon服务是否可用
 	if err := checkHelloFaviconService(); err != nil {
@@ -216,93 +218,74 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	
-	// 调用内部Hello Favicon服务获取网站信息，使用重试机制
-	webInfo, err := getWebsiteInfoFromHelloFaviconWithRetry(req.Url, 2)
-	if err != nil {
-		global.Logger.Debug("获取网站信息失败: ", err.Error())
-		apiReturn.Error(c, "acquisition failed: get website info error: "+err.Error())
-		return
-	}
-	
-	global.Logger.Debug("成功获取网站信息: ", webInfo.Title)
-	
-	// 设置标题和描述
-	resp.Title = webInfo.Title
-	resp.Description = webInfo.Description
-	
-	// 如果有图标URL，使用它
-	if webInfo.FaviconURL != "" {
-		fullUrl = webInfo.FaviconURL
-	} else {
-		apiReturn.Error(c, "acquisition failed: no favicon found")
-		return
-	}
-
 	parsedURL, err := url.Parse(req.Url)
 	if err != nil {
-		apiReturn.Error(c, "acquisition failed:"+err.Error())
+		apiReturn.Error(c, "acquisition failed: parse URL error: "+err.Error())
 		return
 	}
-
-	protocol := parsedURL.Scheme
-	global.Logger.Debug("protocol:", protocol)
-	global.Logger.Debug("fullUrl:", fullUrl)
-
-	// 如果URL以双斜杠（//）开头，则使用当前页面协议
-	if strings.HasPrefix(fullUrl, "//") {
-		fullUrl = protocol + "://" + fullUrl[2:]
-	} else if !strings.HasPrefix(fullUrl, "http://") && !strings.HasPrefix(fullUrl, "https://") {
-		// 如果URL既不以http://开头也不以https://开头，则默认为http协议
-		fullUrl = "http://" + fullUrl
+	
+	// 检查缓存
+	cachedIconPath, found := checkFaviconCache(parsedURL.Host)
+	if found {
+		global.Logger.Debug("使用缓存的favicon: ", cachedIconPath)
+		resp.IconUrl = cachedIconPath
+		resp.Title = parsedURL.Host // 缓存情况下使用域名作为标题
+		resp.Description = ""
+		apiReturn.SuccessData(c, resp)
+		return
 	}
-	global.Logger.Debug("fullUrl:", fullUrl)
-	// 去除图标的get参数
-	{
-		parsedIcoURL, err := url.Parse(fullUrl)
-		if err != nil {
-			apiReturn.Error(c, "acquisition failed: parsed ico URL :"+err.Error())
-			return
-		}
-		fullUrl = parsedIcoURL.Scheme + "://" + parsedIcoURL.Host + parsedIcoURL.Path
+	
+	// 调用Hello Favicon POST API获取完整的favicon信息，使用重试机制
+	faviconInfo, err := getFaviconFromHelloFaviconWithRetry(req.Url, 2)
+	if err != nil {
+		global.Logger.Debug("获取favicon信息失败: ", err.Error())
+		apiReturn.Error(c, "acquisition failed: get favicon info error: "+err.Error())
+		return
 	}
-	global.Logger.Debug("fullUrl:", fullUrl)
-
-	// 生成保存目录
-	configUpload := global.Config.GetValueString("base", "source_path")
-	savePath := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
-	isExist, _ := cmn.PathExists(savePath)
-	if !isExist {
-		os.MkdirAll(savePath, os.ModePerm)
+	
+	global.Logger.Debug("成功获取favicon信息: ", faviconInfo.Title)
+	
+	// 设置标题和描述
+	resp.Title = faviconInfo.Title
+	resp.Description = faviconInfo.Description
+	
+	// 选择最大尺寸的favicon以保证清晰度
+	largestFavicon := getLargestFavicon(faviconInfo.Favicons)
+	if largestFavicon == "" {
+		apiReturn.Error(c, "acquisition failed: no favicon data found")
+		return
 	}
-
-	// 下载
-	var imgInfo *os.File
-	{
-		var err error
-		if imgInfo, err = siteFavicon.DownloadImage(fullUrl, savePath, 1024*1024); err != nil {
-			apiReturn.Error(c, "acquisition failed: download"+err.Error())
-			return
-		}
+	
+	global.Logger.Debug("选择最大尺寸的favicon")
+	
+	// 保存base64数据到本地文件
+	iconPath, err := saveFaviconToCache(parsedURL.Host, largestFavicon)
+	if err != nil {
+		global.Logger.Debug("保存favicon缓存失败: ", err.Error())
+		apiReturn.Error(c, "acquisition failed: save favicon cache error: "+err.Error())
+		return
 	}
-
+	
 	// 保存到数据库
-	ext := path.Ext(fullUrl)
 	mFile := models.File{}
-	if _, err := mFile.AddFile(userInfo.ID, parsedURL.Host, ext, imgInfo.Name()); err != nil {
+	if _, err := mFile.AddFile(userInfo.ID, parsedURL.Host, ".png", iconPath); err != nil {
 		apiReturn.ErrorDatabase(c, err.Error())
 		return
 	}
+	
 	// 去除./conf前缀，只保留/uploads/年/月/日/文件名
-	resp.IconUrl = strings.Replace(imgInfo.Name(), "./conf", "", 1)
+	resp.IconUrl = strings.Replace(iconPath, "./conf", "", 1)
+	global.Logger.Debug("favicon处理完成，保存路径: ", resp.IconUrl)
 	apiReturn.SuccessData(c, resp)
 }
 
-// HelloFaviconResponse Hello Favicon服务的响应结构
-type HelloFaviconResponse struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	URL         string `json:"url"`
-	FaviconURL  string `json:"faviconUrl"`
+// HelloFaviconFullResponse Hello Favicon POST API的完整响应结构
+type HelloFaviconFullResponse struct {
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	URL         string            `json:"url"`
+	FaviconURL  string            `json:"faviconUrl"`
+	Favicons    map[string]string `json:"favicons"` // 尺寸 -> base64编码
 }
 
 // 创建配置好的HTTP客户端
@@ -343,42 +326,54 @@ func checkHelloFaviconService() error {
 	return nil
 }
 
-// getWebsiteInfoFromHelloFaviconWithRetry 带重试机制的网站信息获取
-func getWebsiteInfoFromHelloFaviconWithRetry(targetURL string, maxRetries int) (*HelloFaviconResponse, error) {
+
+
+// getFaviconFromHelloFaviconWithRetry 带重试机制的favicon信息获取（使用POST API）
+func getFaviconFromHelloFaviconWithRetry(targetURL string, maxRetries int) (*HelloFaviconFullResponse, error) {
 	var lastErr error
 	
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			global.Logger.Debug(fmt.Sprintf("重试获取网站信息，第%d次尝试", attempt+1))
+			global.Logger.Debug(fmt.Sprintf("重试获取favicon信息，第%d次尝试", attempt+1))
 			// 重试前等待一段时间
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
 		
-		resp, err := getWebsiteInfoFromHelloFavicon(targetURL)
+		resp, err := getFaviconFromHelloFavicon(targetURL)
 		if err == nil {
 			return resp, nil
 		}
 		
 		lastErr = err
-		global.Logger.Debug(fmt.Sprintf("获取网站信息失败 (尝试 %d/%d): %v", attempt+1, maxRetries+1, err))
+		global.Logger.Debug(fmt.Sprintf("获取favicon信息失败 (尝试 %d/%d): %v", attempt+1, maxRetries+1, err))
 	}
 	
 	return nil, fmt.Errorf("所有重试都失败了: %v", lastErr)
 }
 
-// getWebsiteInfoFromHelloFavicon 从Hello Favicon内部服务获取网站信息
-func getWebsiteInfoFromHelloFavicon(targetURL string) (*HelloFaviconResponse, error) {
-	// 构建内部API请求URL
-	apiURL := fmt.Sprintf("http://127.0.0.1:3000/api?=%s", url.QueryEscape(targetURL))
+// getFaviconFromHelloFavicon 从Hello Favicon内部服务获取完整的favicon信息（使用POST API）
+func getFaviconFromHelloFavicon(targetURL string) (*HelloFaviconFullResponse, error) {
+	// 构建POST请求体
+	requestBody := map[string]string{
+		"url": targetURL,
+	}
 	
-	// 创建HTTP请求
-	req, err := http.NewRequest("GET", apiURL, nil)
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %v", err)
+	}
+	
+	// 创建HTTP POST请求
+	req, err := http.NewRequest("POST", "http://127.0.0.1:3000/api/favicon", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 	
-	// 设置User-Agent
+	// 设置请求头
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Sun-Panel/1.0")
+	
+	global.Logger.Debug("调用Hello Favicon POST API: ", targetURL)
 	
 	// 发送请求
 	resp, err := helloFaviconClient.Do(req)
@@ -392,10 +387,87 @@ func getWebsiteInfoFromHelloFavicon(targetURL string) (*HelloFaviconResponse, er
 	}
 	
 	// 解析响应
-	var helloFaviconResp HelloFaviconResponse
+	var helloFaviconResp HelloFaviconFullResponse
 	if err := json.NewDecoder(resp.Body).Decode(&helloFaviconResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 	
+	global.Logger.Debug("成功获取favicon数据，包含尺寸数量: ", len(helloFaviconResp.Favicons))
 	return &helloFaviconResp, nil
+}
+
+// checkFaviconCache 检查favicon缓存是否存在
+func checkFaviconCache(domain string) (string, bool) {
+	// 生成缓存文件路径
+	configUpload := global.Config.GetValueString("base", "source_path")
+	cacheFileName := fmt.Sprintf("%s.png", cmn.Md5(domain))
+	
+	// 按日期目录查找最近几天的缓存
+	for i := 0; i < 7; i++ { // 查找最近7天的缓存
+		date := time.Now().AddDate(0, 0, -i)
+		cachePath := fmt.Sprintf("%s/%d/%d/%d/%s", configUpload, date.Year(), date.Month(), date.Day(), cacheFileName)
+		
+		if exists, _ := cmn.PathExists(cachePath); exists {
+			global.Logger.Debug("找到favicon缓存: ", cachePath)
+			return cachePath, true
+		}
+	}
+	
+	return "", false
+}
+
+// saveFaviconToCache 保存favicon的base64数据到本地缓存文件
+func saveFaviconToCache(domain, base64Data string) (string, error) {
+	// 解析base64数据
+	if !strings.HasPrefix(base64Data, "data:image/png;base64,") {
+		return "", fmt.Errorf("invalid base64 data format")
+	}
+	
+	// 提取base64编码部分
+	base64Str := strings.TrimPrefix(base64Data, "data:image/png;base64,")
+	imgData, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64 data: %v", err)
+	}
+	
+	// 生成保存目录
+	configUpload := global.Config.GetValueString("base", "source_path")
+	savePath := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
+	isExist, _ := cmn.PathExists(savePath)
+	if !isExist {
+		os.MkdirAll(savePath, os.ModePerm)
+	}
+	
+	// 生成文件名
+	fileName := fmt.Sprintf("%s.png", cmn.Md5(domain))
+	filePath := savePath + fileName
+	
+	// 写入文件
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+	
+	if _, err := file.Write(imgData); err != nil {
+		return "", fmt.Errorf("failed to write file: %v", err)
+	}
+	
+	global.Logger.Debug("favicon缓存保存成功: ", filePath)
+	return filePath, nil
+}
+
+// getLargestFavicon 从favicon映射中选择最大尺寸的favicon
+func getLargestFavicon(favicons map[string]string) string {
+	var selectedBase64 string
+	maxSize := 0
+	
+	for size, base64Data := range favicons {
+		if sizeInt, err := strconv.Atoi(size); err == nil && sizeInt > maxSize {
+			maxSize = sizeInt
+			selectedBase64 = base64Data
+		}
+	}
+	
+	return selectedBase64
 }
