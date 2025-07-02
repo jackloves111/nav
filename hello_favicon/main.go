@@ -90,8 +90,8 @@ func main() {
 	}))
 
 	// 静态文件服务
-	r.Static("/static", "./static")
-	r.LoadHTMLGlob("templates/*")
+	r.Static("/static", "./hello_favicon/static")
+	r.LoadHTMLGlob("hello_favicon/templates/*")
 
 	// 主页
 	r.GET("/", func(c *gin.Context) {
@@ -676,7 +676,7 @@ func getWebsiteInfoByQuery(c *gin.Context) {
 	
 	// 如果没有找到有效的favicon，使用生成的URL
 	if faviconURL == "" {
-		faviconURL = fmt.Sprintf("http://127.0.0.1:3000/static/favicon.svg")
+		faviconURL = fmt.Sprintf("http://127.0.0.1:3000/static/favicon.png")
 		log.Printf("[Hello Favicon] 使用默认favicon: %s", faviconURL)
 	}
 
