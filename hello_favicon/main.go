@@ -88,7 +88,8 @@ func main() {
 	// 简化的GET API，支持查询参数
 	r.GET("/api", getWebsiteInfoByQuery)
 
-	r.Run(":3000")
+	// 只监听内部地址，不对外暴露
+	r.Run("127.0.0.1:3000")
 }
 
 func getFavicon(c *gin.Context) {

@@ -73,8 +73,8 @@ RUN chmod +x /app/hello_favicon_main
 # 复制supervisord配置文件
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# 暴露端口
-EXPOSE 3000 3002
+# 暴露端口（只暴露Sun Panel的3002端口，Hello Favicon的3000端口仅供内部通信）
+EXPOSE 3002
 
 # 初始化sun-panel配置
 RUN /app/sun-panel -config

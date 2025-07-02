@@ -3,6 +3,7 @@ package panel
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -196,6 +197,7 @@ func (a *ItemIcon) SaveSort(c *gin.Context) {
 }
 
 // 支持获取并直接下载对方网站图标到服务器，同时获取标题和描述信息
+// 现在通过调用内部Hello Favicon服务获取网站信息
 func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	userInfo, _ := base.GetCurrentUserInfo(c)
 	req := panelApiStructs.ItemIconGetSiteFaviconReq{}
@@ -207,8 +209,8 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	resp := panelApiStructs.ItemIconGetSiteFaviconResp{}
 	fullUrl := ""
 	
-	// 获取网站信息（图标、标题和描述）
-	webInfo, err := siteFavicon.GetWebsiteInfo(req.Url)
+	// 调用内部Hello Favicon服务获取网站信息
+	webInfo, err := getWebsiteInfoFromHelloFavicon(req.Url)
 	if err != nil {
 		apiReturn.Error(c, "acquisition failed: get website info error:"+err.Error())
 		return
@@ -218,9 +220,9 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	resp.Title = webInfo.Title
 	resp.Description = webInfo.Description
 	
-	// 如果有图标，使用第一个
-	if len(webInfo.Icons) > 0 {
-		fullUrl = webInfo.Icons[0]
+	// 如果有图标URL，使用它
+	if webInfo.FaviconURL != "" {
+		fullUrl = webInfo.FaviconURL
 	} else {
 		apiReturn.Error(c, "acquisition failed: no favicon found")
 		return
@@ -283,4 +285,44 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	// 去除./conf前缀，只保留/uploads/年/月/日/文件名
 	resp.IconUrl = strings.Replace(imgInfo.Name(), "./conf", "", 1)
 	apiReturn.SuccessData(c, resp)
+}
+
+// HelloFaviconResponse Hello Favicon服务的响应结构
+type HelloFaviconResponse struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+	FaviconURL  string `json:"faviconUrl"`
+}
+
+// getWebsiteInfoFromHelloFavicon 从Hello Favicon内部服务获取网站信息
+func getWebsiteInfoFromHelloFavicon(targetURL string) (*HelloFaviconResponse, error) {
+	// 构建内部API请求URL
+	apiURL := fmt.Sprintf("http://127.0.0.1:3000/api?=%s", url.QueryEscape(targetURL))
+	
+	// 创建HTTP客户端
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	// 发送请求
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call hello favicon service: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("hello favicon service returned status code: %d", resp.StatusCode)
+	}
+	
+	// 解析响应
+	var helloFaviconResp HelloFaviconResponse
+	if err := json.NewDecoder(resp.Body).Decode(&helloFaviconResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+	
+	return &helloFaviconResp, nil
 }
