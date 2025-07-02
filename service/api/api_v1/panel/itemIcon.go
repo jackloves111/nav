@@ -222,16 +222,6 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	
-	// 检查缓存
-	cachedIconPath, found := checkFaviconCache(parsedURL.Host)
-	if found {
-		global.Logger.Debug("使用缓存的favicon: ", cachedIconPath)
-		resp.IconUrl = cachedIconPath
-		resp.Title = parsedURL.Host // 缓存情况下使用域名作为标题
-		resp.Description = ""
-		apiReturn.SuccessData(c, resp)
-		return
-	}
 	
 	// 调用Hello Favicon POST API获取完整的favicon信息，使用重试机制
 	faviconInfo, err := getFaviconFromHelloFaviconWithRetry(req.Url, 2)
@@ -259,8 +249,8 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	// 保存base64数据到本地文件
 	iconPath, err := saveFaviconToCache(parsedURL.Host, largestFavicon)
 	if err != nil {
-		global.Logger.Debug("保存favicon缓存失败: ", err.Error())
-		apiReturn.Error(c, "acquisition failed: save favicon cache error: "+err.Error())
+		global.Logger.Debug("保存favicon失败: ", err.Error())
+		apiReturn.Error(c, "acquisition failed: save favicon error: "+err.Error())
 		return
 	}
 	
@@ -394,25 +384,7 @@ func getFaviconFromHelloFavicon(targetURL string) (*HelloFaviconFullResponse, er
 	return &helloFaviconResp, nil
 }
 
-// checkFaviconCache 检查favicon缓存是否存在
-func checkFaviconCache(domain string) (string, bool) {
-	// 生成缓存文件路径
-	configUpload := global.Config.GetValueString("base", "source_path")
-	cacheFileName := fmt.Sprintf("%s.png", cmn.Md5(domain))
-	
-	// 按日期目录查找最近几天的缓存
-	for i := 0; i < 7; i++ { // 查找最近7天的缓存
-		date := time.Now().AddDate(0, 0, -i)
-		cachePath := fmt.Sprintf("%s/%d/%d/%d/%s", configUpload, date.Year(), date.Month(), date.Day(), cacheFileName)
-		
-		if exists, _ := cmn.PathExists(cachePath); exists {
-			global.Logger.Debug("找到favicon缓存: ", cachePath)
-			return cachePath, true
-		}
-	}
-	
-	return "", false
-}
+
 
 // saveFaviconToCache 保存favicon的base64数据到本地缓存文件
 func saveFaviconToCache(domain, base64Data string) (string, error) {
