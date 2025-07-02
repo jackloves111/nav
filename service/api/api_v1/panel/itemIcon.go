@@ -209,12 +209,22 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 	resp := panelApiStructs.ItemIconGetSiteFaviconResp{}
 	fullUrl := ""
 	
-	// 调用内部Hello Favicon服务获取网站信息
-	webInfo, err := getWebsiteInfoFromHelloFavicon(req.Url)
-	if err != nil {
-		apiReturn.Error(c, "acquisition failed: get website info error:"+err.Error())
+	// 首先检查Hello Favicon服务是否可用
+	if err := checkHelloFaviconService(); err != nil {
+		global.Logger.Debug("Hello Favicon服务不可用: ", err.Error())
+		apiReturn.Error(c, "acquisition failed: hello favicon service unavailable: "+err.Error())
 		return
 	}
+	
+	// 调用内部Hello Favicon服务获取网站信息，使用重试机制
+	webInfo, err := getWebsiteInfoFromHelloFaviconWithRetry(req.Url, 2)
+	if err != nil {
+		global.Logger.Debug("获取网站信息失败: ", err.Error())
+		apiReturn.Error(c, "acquisition failed: get website info error: "+err.Error())
+		return
+	}
+	
+	global.Logger.Debug("成功获取网站信息: ", webInfo.Title)
 	
 	// 设置标题和描述
 	resp.Title = webInfo.Title
@@ -295,20 +305,83 @@ type HelloFaviconResponse struct {
 	FaviconURL  string `json:"faviconUrl"`
 }
 
+// 创建配置好的HTTP客户端
+var helloFaviconClient = &http.Client{
+	Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 5 * time.Second,
+		DisableKeepAlives:   false,
+	},
+}
+
+// checkHelloFaviconService 检查Hello Favicon服务是否可用
+func checkHelloFaviconService() error {
+	global.Logger.Debug("检查Hello Favicon服务健康状态")
+	
+	// 创建简单的健康检查请求
+	req, err := http.NewRequest("GET", "http://127.0.0.1:3000/", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create health check request: %v", err)
+	}
+	
+	// 设置较短的超时时间用于健康检查
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("hello favicon service is not available: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("hello favicon service health check failed with status: %d", resp.StatusCode)
+	}
+	
+	global.Logger.Debug("Hello Favicon服务健康检查通过")
+	return nil
+}
+
+// getWebsiteInfoFromHelloFaviconWithRetry 带重试机制的网站信息获取
+func getWebsiteInfoFromHelloFaviconWithRetry(targetURL string, maxRetries int) (*HelloFaviconResponse, error) {
+	var lastErr error
+	
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			global.Logger.Debug(fmt.Sprintf("重试获取网站信息，第%d次尝试", attempt+1))
+			// 重试前等待一段时间
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+		
+		resp, err := getWebsiteInfoFromHelloFavicon(targetURL)
+		if err == nil {
+			return resp, nil
+		}
+		
+		lastErr = err
+		global.Logger.Debug(fmt.Sprintf("获取网站信息失败 (尝试 %d/%d): %v", attempt+1, maxRetries+1, err))
+	}
+	
+	return nil, fmt.Errorf("所有重试都失败了: %v", lastErr)
+}
+
 // getWebsiteInfoFromHelloFavicon 从Hello Favicon内部服务获取网站信息
 func getWebsiteInfoFromHelloFavicon(targetURL string) (*HelloFaviconResponse, error) {
 	// 构建内部API请求URL
 	apiURL := fmt.Sprintf("http://127.0.0.1:3000/api?=%s", url.QueryEscape(targetURL))
 	
-	// 创建HTTP客户端
-	client := &http.Client{}
+	// 创建HTTP请求
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 	
+	// 设置User-Agent
+	req.Header.Set("User-Agent", "Sun-Panel/1.0")
+	
 	// 发送请求
-	resp, err := client.Do(req)
+	resp, err := helloFaviconClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call hello favicon service: %v", err)
 	}
