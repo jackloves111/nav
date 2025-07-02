@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"sun-panel/api/api_v1/common/apiData/commonApiStructs"
@@ -17,7 +16,6 @@ import (
 	"sun-panel/api/api_v1/common/base"
 	"sun-panel/global"
 	"sun-panel/lib/cmn"
-	"sun-panel/lib/siteFavicon"
 	"sun-panel/models"
 	"time"
 
