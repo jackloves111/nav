@@ -65,14 +65,9 @@ docker-compose up -d
 ![](example.jpg)
 
 ## 新增功能
-
 接口地址： GET /api
-
 支持的查询参数：
-
-- url - 目标网站URL
 - 空参数名（如 ?=https://www.baidu.com ）
-- u - URL的简写形式
 ## 使用示例
 你现在可以在浏览器中直接访问：
 
