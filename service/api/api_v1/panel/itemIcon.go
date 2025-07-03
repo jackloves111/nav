@@ -400,17 +400,23 @@ func saveFaviconToCache(domain, base64Data string) (string, error) {
 		return "", fmt.Errorf("failed to decode base64 data: %v", err)
 	}
 	
-	// 生成保存目录
+	// 生成保存目录 - 统一保存到auto-icons文件夹
 	configUpload := global.Config.GetValueString("base", "source_path")
-	savePath := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
+	savePath := fmt.Sprintf("%s/auto-icons/", configUpload)
 	isExist, _ := cmn.PathExists(savePath)
 	if !isExist {
 		os.MkdirAll(savePath, os.ModePerm)
 	}
 	
-	// 生成文件名
+	// 生成文件名 - 使用domain的MD5值确保同一域名的图标不会重复保存
 	fileName := fmt.Sprintf("%s.png", cmn.Md5(domain))
 	filePath := savePath + fileName
+	
+	// 检查文件是否已存在，如果存在则直接返回路径，避免重复保存
+	if fileExists, _ := cmn.PathExists(filePath); fileExists {
+		global.Logger.Debug("favicon文件已存在，直接使用: ", filePath)
+		return filePath, nil
+	}
 	
 	// 写入文件
 	file, err := os.Create(filePath)
