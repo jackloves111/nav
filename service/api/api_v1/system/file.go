@@ -43,20 +43,29 @@ func (a *FileApi) UploadImg(c *gin.Context) {
 			apiReturn.ErrorByCode(c, 1301)
 			return
 		}
-		fileName := cmn.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
-		fildDir := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
-		isExist, _ := cmn.PathExists(fildDir)
+		
+		// 创建手动上传文件目录
+		uploadsDir := fmt.Sprintf("%s/uploads/uploads-icons/", configUpload)
+		isExist, _ := cmn.PathExists(uploadsDir)
 		if !isExist {
-			os.MkdirAll(fildDir, os.ModePerm)
+			os.MkdirAll(uploadsDir, os.ModePerm)
 		}
-		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		c.SaveUploadedFile(f, filepath)
+		
+		// 先保存到临时文件
+		tempFileName := cmn.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
+		tempFilePath := fmt.Sprintf("%stemp_%s%s", uploadsDir, tempFileName, fileExt)
+		c.SaveUploadedFile(f, tempFilePath)
 
-		// 像数据库添加记录
+		// 使用基于内容MD5的去重方法
 		mFile := models.File{}
-		mFile.AddFile(userInfo.ID, f.Filename, fileExt, filepath)
-		// 去除./conf前缀，只保留/uploads/年/月/日/文件名
-		urlPath := strings.Replace(filepath, "./conf", "", 1)
+		file, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
+		if err != nil {
+			apiReturn.ErrorDatabase(c, err.Error())
+			return
+		}
+		
+		// 去除./conf前缀，只保留/uploads/uploads-icons/文件名
+		urlPath := strings.Replace(finalPath, "./conf", "", 1)
 		apiReturn.SuccessData(c, gin.H{
 			"imageUrl": urlPath,
 		})
@@ -72,28 +81,37 @@ func (a *FileApi) UploadFiles(c *gin.Context) {
 		apiReturn.ErrorByCode(c, 1300)
 		return
 	}
+	
+	// 创建手动上传文件目录
+	uploadsDir := fmt.Sprintf("%s/uploads/uploads-icons/", configUpload)
+	isExist, _ := cmn.PathExists(uploadsDir)
+	if !isExist {
+		os.MkdirAll(uploadsDir, os.ModePerm)
+	}
+	
 	files := form.File["files[]"]
 	errFiles := []string{}
 	succMap := map[string]string{}
 	for _, f := range files {
 		fileExt := strings.ToLower(path.Ext(f.Filename))
-		fileName := cmn.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
-		fildDir := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
-		isExist, _ := cmn.PathExists(fildDir)
-		if !isExist {
-			os.MkdirAll(fildDir, os.ModePerm)
-		}
-		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		if c.SaveUploadedFile(f, filepath) != nil {
+		
+		// 先保存到临时文件
+		tempFileName := cmn.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
+		tempFilePath := fmt.Sprintf("%stemp_%s%s", uploadsDir, tempFileName, fileExt)
+		
+		if c.SaveUploadedFile(f, tempFilePath) != nil {
 			errFiles = append(errFiles, f.Filename)
 		} else {
-			// 成功
-			// 像数据库添加记录
+			// 使用基于内容MD5的去重方法
 			mFile := models.File{}
-			mFile.AddFile(userInfo.ID, f.Filename, fileExt, filepath)
-			// 去除./conf前缀，只保留/uploads/年/月/日/文件名
-			urlPath := strings.Replace(filepath, "./conf", "", 1)
-			succMap[f.Filename] = urlPath
+			file, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
+			if err != nil {
+				errFiles = append(errFiles, f.Filename)
+			} else {
+				// 去除./conf前缀，只保留/uploads/uploads-icons/文件名
+				urlPath := strings.Replace(finalPath, "./conf", "", 1)
+				succMap[f.Filename] = urlPath
+			}
 		}
 	}
 
@@ -114,7 +132,7 @@ func (a *FileApi) GetList(c *gin.Context) {
 
 	data := []map[string]interface{}{}
 	for _, v := range list {
-		// 去除./conf前缀，只保留/uploads/年/月/日/文件名
+		// 去除./conf前缀，只保留/uploads/uploads-icons/文件名
 		urlPath := strings.Replace(v.Src, "./conf", "", 1)
 		data = append(data, map[string]interface{}{
 			"src":        urlPath,

@@ -262,7 +262,7 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	
-	// 去除./conf前缀，只保留/uploads/年/月/日/文件名
+	// 去除./conf前缀，只保留/auto-icons/文件名
 	resp.IconUrl = strings.Replace(iconPath, "./conf", "", 1)
 	global.Logger.Debug("favicon处理完成，保存路径: ", resp.IconUrl)
 	apiReturn.SuccessData(c, resp)
