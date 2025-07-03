@@ -255,9 +255,9 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	
-	// 保存到数据库
+	// 保存到数据库 - 使用AddOrGetFile避免重复插入
 	mFile := models.File{}
-	if _, err := mFile.AddFile(userInfo.ID, parsedURL.Host, ".png", iconPath); err != nil {
+	if _, err := mFile.AddOrGetFile(userInfo.ID, parsedURL.Host, ".png", iconPath); err != nil {
 		apiReturn.ErrorDatabase(c, err.Error())
 		return
 	}
