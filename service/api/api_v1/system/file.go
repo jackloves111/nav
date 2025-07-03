@@ -58,7 +58,7 @@ func (a *FileApi) UploadImg(c *gin.Context) {
 
 		// 使用基于内容MD5的去重方法
 		mFile := models.File{}
-		file, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
+		_, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
 		if err != nil {
 			apiReturn.ErrorDatabase(c, err.Error())
 			return
@@ -104,7 +104,7 @@ func (a *FileApi) UploadFiles(c *gin.Context) {
 		} else {
 			// 使用基于内容MD5的去重方法
 			mFile := models.File{}
-			file, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
+			_, finalPath, err := mFile.AddOrGetFileByContentMD5(userInfo.ID, f.Filename, fileExt, tempFilePath, uploadsDir)
 			if err != nil {
 				errFiles = append(errFiles, f.Filename)
 			} else {
