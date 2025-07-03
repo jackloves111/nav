@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -339,6 +340,11 @@ func getFaviconFromHelloFaviconWithRetry(targetURL string, maxRetries int) (*Hel
 	return nil, fmt.Errorf("所有重试都失败了: %v", lastErr)
 }
 
+// HelloFaviconErrorResponse Hello Favicon服务的错误响应结构
+type HelloFaviconErrorResponse struct {
+	Error string `json:"error"`
+}
+
 // getFaviconFromHelloFavicon 从Hello Favicon内部服务获取完整的favicon信息（使用POST API）
 func getFaviconFromHelloFavicon(targetURL string) (*HelloFaviconFullResponse, error) {
 	// 构建POST请求体
@@ -370,13 +376,24 @@ func getFaviconFromHelloFavicon(targetURL string) (*HelloFaviconFullResponse, er
 	}
 	defer resp.Body.Close()
 	
+	// 读取响应体
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+	
 	if resp.StatusCode != http.StatusOK {
+		// 尝试解析错误响应
+		var errorResp HelloFaviconErrorResponse
+		if err := json.Unmarshal(bodyBytes, &errorResp); err == nil && errorResp.Error != "" {
+			return nil, fmt.Errorf("%s", errorResp.Error)
+		}
 		return nil, fmt.Errorf("hello favicon service returned status code: %d", resp.StatusCode)
 	}
 	
-	// 解析响应
+	// 解析成功响应
 	var helloFaviconResp HelloFaviconFullResponse
-	if err := json.NewDecoder(resp.Body).Decode(&helloFaviconResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &helloFaviconResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 	
