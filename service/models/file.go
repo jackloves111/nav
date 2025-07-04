@@ -128,21 +128,77 @@ func (m *File) MigrateOldFilePaths() error {
 		return err
 	}
 	
+	// 确保新目录存在
+	newDir := "./conf/uploads/uploads-icons/"
+	if err := os.MkdirAll(newDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create new directory: %v", err)
+	}
+	
 	for _, file := range files {
 		// 跳过已经是新格式的文件
 		if file.Src == "" || file.Src == "./conf/uploads/uploads-icons/" || file.Src == "/uploads/uploads-icons/" {
 			continue
 		}
 		
-		// 构建新的文件路径
-		newSrc := fmt.Sprintf("./conf/uploads/uploads-icons/%s%s", file.FileName, file.Ext)
+		// 检查旧文件是否存在
+		if _, err := os.Stat(file.Src); os.IsNotExist(err) {
+			// 旧文件不存在，直接更新数据库记录为新路径格式
+			newSrc := fmt.Sprintf("./conf/uploads/uploads-icons/%s%s", file.FileName, file.Ext)
+			if err := Db.Model(&file).Update("src", newSrc).Error; err != nil {
+				return err
+			}
+			continue
+		}
 		
-		// 更新数据库记录
-		err := Db.Model(&file).Update("src", newSrc).Error
+		// 计算文件内容MD5作为新文件名
+		fileMD5, err := m.GetFileMD5(file.Src)
 		if err != nil {
-			return err
+			// 如果无法计算MD5，使用原文件名
+			newSrc := fmt.Sprintf("./conf/uploads/uploads-icons/%s%s", file.FileName, file.Ext)
+			// 复制文件到新位置
+			if err := m.copyFile(file.Src, newSrc); err != nil {
+				return fmt.Errorf("failed to copy file %s to %s: %v", file.Src, newSrc, err)
+			}
+			// 更新数据库记录
+			if err := Db.Model(&file).Update("src", newSrc).Error; err != nil {
+				return err
+			}
+		} else {
+			// 使用MD5作为新文件名
+			newSrc := fmt.Sprintf("./conf/uploads/uploads-icons/%s%s", fileMD5, file.Ext)
+			
+			// 检查新位置是否已存在相同文件
+			if _, err := os.Stat(newSrc); os.IsNotExist(err) {
+				// 复制文件到新位置
+				if err := m.copyFile(file.Src, newSrc); err != nil {
+					return fmt.Errorf("failed to copy file %s to %s: %v", file.Src, newSrc, err)
+				}
+			}
+			
+			// 更新数据库记录
+			if err := Db.Model(&file).Update("src", newSrc).Error; err != nil {
+				return err
+			}
 		}
 	}
 	
 	return nil
+}
+
+// 复制文件的辅助方法
+func (m *File) copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+	
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+	
+	_, err = io.Copy(destFile, sourceFile)
+	return err
 }
