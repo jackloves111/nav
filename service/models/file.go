@@ -118,3 +118,31 @@ func (m *File) AddOrGetFileByContentMD5(userId uint, fileName, ext, tempFilePath
 	file, err := m.AddFile(userId, fileName, ext, finalPath)
 	return file, finalPath, err
 }
+
+// 迁移旧格式的文件路径到新格式（从年/月/日目录结构迁移到uploads/uploads-icons/目录）
+func (m *File) MigrateOldFilePaths() error {
+	var files []File
+	// 查找所有使用旧路径格式的文件记录（包含年/月/日格式的路径）
+	err := Db.Where("src LIKE ? OR src LIKE ?", "./conf/%/%/%/%.%", "%/%/%/%.%").Find(&files).Error
+	if err != nil {
+		return err
+	}
+	
+	for _, file := range files {
+		// 跳过已经是新格式的文件
+		if file.Src == "" || file.Src == "./conf/uploads/uploads-icons/" || file.Src == "/uploads/uploads-icons/" {
+			continue
+		}
+		
+		// 构建新的文件路径
+		newSrc := fmt.Sprintf("./conf/uploads/uploads-icons/%s%s", file.FileName, file.Ext)
+		
+		// 更新数据库记录
+		err := Db.Model(&file).Update("src", newSrc).Error
+		if err != nil {
+			return err
+		}
+	}
+	
+	return nil
+}
