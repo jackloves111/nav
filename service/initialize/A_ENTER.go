@@ -124,6 +124,15 @@ func DatabaseConnect() {
 	database.CreateDatabase(databaseDrive, global.Db)
 
 	database.NotFoundAndCreateUser(global.Db)
+
+	// 执行文件路径数据迁移
+	fileModel := models.File{}
+	if err := fileModel.MigrateOldFilePaths(); err != nil {
+		global.Logger.Errorln("File path migration error:", err)
+		// 不中断启动，只记录错误
+	} else {
+		global.Logger.Infoln("File path migration completed successfully")
+	}
 }
 
 // 命令行运行
