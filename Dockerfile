@@ -1,10 +1,11 @@
 # 构建前端
 FROM node AS web_image
 
-# 华为源
-RUN npm config set registry https://repo.huaweicloud.com/repository/npm/
+# 官方源
+RUN npm config set registry https://registry.npmjs.org/
 
-RUN npm install pnpm -g
+# 安装固定版本的pnpm，加大重试与超时避免大文件下载被网络中断(ECONNRESET)
+RUN npm install pnpm@10.7.1 -g --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000 --fetch-timeout=600000
 
 WORKDIR /build
 
