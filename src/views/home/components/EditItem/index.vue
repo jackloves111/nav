@@ -50,23 +50,21 @@ const rules: FormRules = {
   url: {
     trigger: 'blur',
     validator(rule, value, callback) {
-      if (!value && !model.value.lanUrl) {
+      if (!value && !model.value.lanUrl)
         callback(new Error(t('外网地址或内网地址必须填写其中一个')))
-      } else {
+      else
         callback()
-      }
-    }
+    },
   },
   // 添加lanUrl规则
   lanUrl: {
-    trigger: 'blur', 
+    trigger: 'blur',
     validator(rule, value, callback) {
-      if (!value && !model.value.url) {
+      if (!value && !model.value.url)
         callback(new Error(t('外网地址或内网地址必须填写其中一个')))
-      } else {
+      else
         callback()
-      }
-    }
+    },
   },
   // itemIconGroupId: {
   //   required: true,
@@ -129,28 +127,25 @@ const handleValidateButtonClick = (e: MouseEvent) => {
 
 // 错误信息翻译函数
 function translateErrorMessage(errorMsg: string): string {
-  if (!errorMsg) return '未知错误'
-  
+  if (!errorMsg)
+    return '未知错误'
+
   // 网络超时错误
-  if (errorMsg.includes('context deadline exceeded') || errorMsg.includes('Client.Timeout exceeded')) {
+  if (errorMsg.includes('context deadline exceeded') || errorMsg.includes('Client.Timeout exceeded'))
     return '网络超时错误'
-  }
-  
+
   // 连接被拒绝
-  if (errorMsg.includes('connection refused') || errorMsg.includes('connect: connection refused')) {
+  if (errorMsg.includes('connection refused') || errorMsg.includes('connect: connection refused'))
     return '连接被拒绝，目标服务器无法访问'
-  }
-  
+
   // DNS解析失败
-  if (errorMsg.includes('no such host') || errorMsg.includes('dns resolution failed')) {
+  if (errorMsg.includes('no such host') || errorMsg.includes('dns resolution failed'))
     return 'DNS解析失败，无法找到该域名'
-  }
-  
+
   // URL格式错误
-  if (errorMsg.includes('Invalid URL') || errorMsg.includes('parse URL error')) {
+  if (errorMsg.includes('Invalid URL') || errorMsg.includes('parse URL error'))
     return 'URL格式错误，请检查网址是否正确'
-  }
-  
+
   // HTTP状态码错误
   if (errorMsg.includes('status code:')) {
     const statusMatch = errorMsg.match(/status code: (\d+)/)
@@ -172,37 +167,31 @@ function translateErrorMessage(errorMsg: string): string {
       }
     }
   }
-  
+
   // Hello Favicon服务不可用
-  if (errorMsg.includes('hello favicon service unavailable')) {
+  if (errorMsg.includes('hello favicon service unavailable'))
     return '图标获取服务暂时不可用，请稍后重试'
-  }
-  
+
   // 网站获取失败
-  if (errorMsg.includes('Failed to fetch website')) {
+  if (errorMsg.includes('Failed to fetch website'))
     return '无法访问目标网站，请检查网址是否正确'
-  }
-  
+
   // 解析HTML失败
-  if (errorMsg.includes('Failed to parse HTML')) {
+  if (errorMsg.includes('Failed to parse HTML'))
     return '网页内容解析失败'
-  }
-  
+
   // 未找到图标
-  if (errorMsg.includes('No favicon found')) {
+  if (errorMsg.includes('No favicon found'))
     return '该网站未设置图标'
-  }
-  
+
   // 保存图标失败
-  if (errorMsg.includes('save favicon failed')) {
+  if (errorMsg.includes('save favicon failed'))
     return '图标保存失败，请重试'
-  }
-  
+
   // SSL/TLS错误
-  if (errorMsg.includes('tls:') || errorMsg.includes('certificate')) {
+  if (errorMsg.includes('tls:') || errorMsg.includes('certificate'))
     return 'SSL证书错误，无法建立安全连接'
-  }
-  
+
   // 默认返回原始错误信息（如果没有匹配到特定模式）
   return errorMsg
 }
@@ -210,7 +199,7 @@ function translateErrorMessage(errorMsg: string): string {
 async function getIconByUrl(url: string, loadingIndex: number) {
   getIconLoading.value[loadingIndex] = true
   try {
-    const { code, data, msg } = await getSiteFavicon<{ iconUrl: string, title: string, description: string }>(url)
+    const { code, data, msg } = await getSiteFavicon<{ iconUrl: string; title: string; description: string }>(url)
     if (code === 0) {
       model.value.icon = {
         itemType: 2,
@@ -218,13 +207,12 @@ async function getIconByUrl(url: string, loadingIndex: number) {
         backgroundColor: '#ffffff',
       }
       // 如果标题为空，则不更新标题
-      if (data.title && !model.value.title) {
+      if (data.title && !model.value.title)
         model.value.title = data.title
-      }
+
       // 如果描述为空，则不更新描述
-      if (data.description && !model.value.description) {
+      if (data.description && !model.value.description)
         model.value.description = data.description
-      }
     }
     else {
       // 翻译并显示具体的错误信息
@@ -235,12 +223,11 @@ async function getIconByUrl(url: string, loadingIndex: number) {
   catch (error: any) {
     // 尝试从错误对象中提取具体的错误信息并翻译
     let errorMsg = ''
-    if (error?.response?.data?.msg) {
+    if (error?.response?.data?.msg)
       errorMsg = error.response.data.msg
-    } else if (error?.message) {
+    else if (error?.message)
       errorMsg = error.message
-    }
-    
+
     const translatedError = translateErrorMessage(errorMsg)
     ms.error(`图标获取失败: ${translatedError}`)
   }
@@ -283,50 +270,55 @@ function getGroupListOptions() {
 </script>
 
 <template>
-  <NModal v-model:show="show" preset="card" size="small" style="width: 600px;border-radius: 1rem;" :title="itemInfo ? t('iconItem.edit') : t('iconItem.add')">
-    <div class="h-[600px] overflow-auto p-[5px]">
-      <NForm ref="formRef" :model="model" :rules="rules">
-        <NGrid cols="2" :x-gap="10" item-responsive>
-          <NGridItem span="2 500:1">
-            <NFormItem path="itemIconGroupId" :label="t('iconItem.iconGroup')">
-              <NSelect v-model:value="model.itemIconGroupId" :options="itemIconGroupOptions" />
-            </NFormItem>
-          </NGridItem>
-          <NGridItem span="2 500:1">
-            <NFormItem path="title" :label="$t('common.title')">
-              <NInput v-model:value="model.title" type="text" show-count :maxlength="20" />
-            </NFormItem>
-          </NGridItem>
-        </NGrid>
+  <NModal
+    v-model:show="show"
+    preset="card"
+    size="small"
+    style="width: 600px;border-radius: 1rem;height: min(600px, calc(100vh - 40px));"
+    :title="itemInfo ? t('iconItem.edit') : t('iconItem.add')"
+    content-class="flex-1 min-h-0 overflow-auto edit-modal-content"
+  >
+    <NForm ref="formRef" :model="model" :rules="rules">
+      <NGrid cols="2" :x-gap="10" item-responsive>
+        <NGridItem span="2 500:1">
+          <NFormItem path="itemIconGroupId" :label="t('iconItem.iconGroup')">
+            <NSelect v-model:value="model.itemIconGroupId" :options="itemIconGroupOptions" />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="2 500:1">
+          <NFormItem path="title" :label="$t('common.title')">
+            <NInput v-model:value="model.title" type="text" show-count :maxlength="20" />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
 
-        <NFormItem path="icon" :label="$t('common.icon')">
-          <IconEditor v-model:item-icon="model.icon" />
-        </NFormItem>
-        <NFormItem path="url" :label="$t('iconItem.url')">
-          <!-- <NSelect :style="{ width: '100px' }" :options="urlProtocolOptions" /> -->
-          <NInputGroup>
-            <NInput v-model:value="model.url" type="text" :maxlength="1000" placeholder="http(s)://" />
-            <NButton :disabled="!model.url" :loading="getIconLoading[0]" @click="getIconByUrl(model.url, 0)">
-              {{ $t('iconItem.getIcon') }}
-            </NButton>
-          </NInputGroup>
-        </NFormItem>
-        <NFormItem path="lanUrl" :label="$t('iconItem.lanUrl')">
-          <NInputGroup>
-            <NInput v-model:value="model.lanUrl" type="text" :maxlength="1000" :placeholder="$t('iconItem.lanUrlInputPlaceholder')" />
-            <NButton :disabled="!model.lanUrl" :loading="getIconLoading[1]" @click="getIconByUrl(model.lanUrl || '', 1)">
-              {{ $t('iconItem.getIcon') }}
-            </NButton>
-          </NInputGroup>
-        </NFormItem>
-        <NFormItem path="description" :label="$t('common.description')">
-          <NInput v-model:value="model.description" type="text" show-count :maxlength="100" />
-        </NFormItem>
-        <NFormItem path="openMethod" :label="$t('iconItem.openMethod')">
-          <NSelect v-model:value="model.openMethod" :options="options" />
-        </NFormItem>
-      </NForm>
-    </div>
+      <NFormItem path="icon" :label="$t('common.icon')">
+        <IconEditor v-model:item-icon="model.icon" />
+      </NFormItem>
+      <NFormItem path="url" :label="$t('iconItem.url')">
+        <!-- <NSelect :style="{ width: '100px' }" :options="urlProtocolOptions" /> -->
+        <NInputGroup>
+          <NInput v-model:value="model.url" type="text" :maxlength="1000" placeholder="http(s)://" />
+          <NButton :disabled="!model.url" :loading="getIconLoading[0]" @click="getIconByUrl(model.url, 0)">
+            {{ $t('iconItem.getIcon') }}
+          </NButton>
+        </NInputGroup>
+      </NFormItem>
+      <NFormItem path="lanUrl" :label="$t('iconItem.lanUrl')">
+        <NInputGroup>
+          <NInput v-model:value="model.lanUrl" type="text" :maxlength="1000" :placeholder="$t('iconItem.lanUrlInputPlaceholder')" />
+          <NButton :disabled="!model.lanUrl" :loading="getIconLoading[1]" @click="getIconByUrl(model.lanUrl || '', 1)">
+            {{ $t('iconItem.getIcon') }}
+          </NButton>
+        </NInputGroup>
+      </NFormItem>
+      <NFormItem path="description" :label="$t('common.description')">
+        <NInput v-model:value="model.description" type="text" show-count :maxlength="100" />
+      </NFormItem>
+      <NFormItem path="openMethod" :label="$t('iconItem.openMethod')">
+        <NSelect v-model:value="model.openMethod" :options="options" />
+      </NFormItem>
+    </NForm>
 
     <template #footer>
       <NButton type="success" :loading="submitLoading" style="float: right;" @click="handleValidateButtonClick">

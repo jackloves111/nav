@@ -66,8 +66,9 @@ watch(() => props.show, (value) => {
     v-model:show="showValue"
     preset="card"
     :title="$t('iconItem.presetIcon')"
-    style="width: 760px; max-width: 90vw;"
+    style="width: 760px; max-width: 90vw; height: min(560px, calc(100vh - 40px));"
     size="small"
+    content-class="flex-1 min-h-0 overflow-auto"
   >
     <NInput
       v-model:value="keyword"
@@ -80,7 +81,7 @@ watch(() => props.show, (value) => {
       :description="$t('common.noData')"
       class="pt-[40px]"
     />
-    <div v-else class="grid grid-cols-8 gap-[6px] overflow-auto p-[2px]" style="max-height: 420px;">
+    <div v-else class="grid grid-cols-8 lg:grid-cols-10 gap-[6px] p-[2px]">
       <div
         v-for="item in filteredIcons"
         :key="item.name"
