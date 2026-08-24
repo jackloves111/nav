@@ -129,23 +129,25 @@ const handleUploadFinish = ({
           <!-- 图片 -->
           <div v-if="itemIconInfo.itemType === 2">
             <NInput v-model:value="itemIconInfo.src" class="mb-[5px] w-full" size="small" type="text" :placeholder="$t('iconItem.inputIconUrlOrUpload')" @input="handleChange" />
-            <NUpload
-              action="/api/file/uploadImg"
-              :show-file-list="false"
-              name="imgfile"
-              :headers="{
-                token: authStore.token as string,
-              }"
-              @finish="handleUploadFinish"
-            >
-              <NButton size="small">
-                {{ $t('iconItem.selectUpload') }}
-              </NButton>
-            </NUpload>
+            <div class="flex items-center gap-[10px]">
+              <NUpload
+                action="/api/file/uploadImg"
+                :show-file-list="false"
+                name="imgfile"
+                :headers="{
+                  token: authStore.token as string,
+                }"
+                @finish="handleUploadFinish"
+              >
+                <NButton size="small">
+                  {{ $t('iconItem.selectUpload') }}
+                </NButton>
+              </NUpload>
 
-            <NButton class="ml-[5px]" size="small" type="info" @click="presetIconShow = true">
-              {{ $t('iconItem.presetIcon') }}
-            </NButton>
+              <NButton size="small" type="info" @click="presetIconShow = true">
+                {{ $t('iconItem.presetIcon') }}
+              </NButton>
+            </div>
           </div>
         </div>
       </div>
