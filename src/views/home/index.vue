@@ -74,7 +74,8 @@ function handleItemClick(itemGroupIndex: number, item: Panel.ItemInfo) {
     return
   }
 
-  if (!item) return
+  if (!item)
+    return
 
   // 优先处理两个URL都为空的情况
   if (!item.lanUrl && !item.url) {
@@ -83,22 +84,22 @@ function handleItemClick(itemGroupIndex: number, item: Panel.ItemInfo) {
   }
 
   // 根据网络模式选择可用URL
-  const baseUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan 
-    ? item.lanUrl || item.url
-    : item.url || item.lanUrl
+  const baseUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan
+    ? (item.lanUrl || item.url)
+    : (item.url || item.lanUrl)
 
   const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
 
   openPage(item.openMethod, jumpUrl, item.title)
 }
 
-function handWindowIframeIdLoad(payload: Event) {
+function handWindowIframeIdLoad() {
   windowIframeIsLoad.value = false
 }
 
 function getList() {
   // 获取组数据
-  getGroupList<Common.ListResponse<ItemGroup[]>>().then(({ code, data, msg }) => {
+  getGroupList<Common.ListResponse<ItemGroup[]>>().then(({ code, data }) => {
     if (code === 0)
       items.value = data.list
     for (let i = 0; i < data.list.length; i++) {
@@ -128,8 +129,8 @@ function handleRightMenuSelect(key: string | number) {
   }
 
   const baseUrl = panelState.networkMode === PanelStateNetworkModeEnum.lan
-    ? currentRightSelectItem.value?.lanUrl || currentRightSelectItem.value?.url
-    : currentRightSelectItem.value?.url || currentRightSelectItem.value?.lanUrl
+    ? (currentRightSelectItem.value?.lanUrl || currentRightSelectItem.value?.url)
+    : (currentRightSelectItem.value?.url || currentRightSelectItem.value?.lanUrl)
 
   const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
   switch (key) {
@@ -192,7 +193,7 @@ function onClickoutside() {
   dropdownShow.value = false
 }
 
-function handleEditSuccess(item: Panel.ItemInfo) {
+function handleEditSuccess(_item: Panel.ItemInfo) {
   getList()
 }
 
@@ -373,7 +374,7 @@ function handleAddItem(itemIconGroupId?: number) {
             </div>
           </div>
           <div v-if="panelState.panelConfig.searchBoxShow" class="flex mt-[20px] mx-auto sm:w-full lg:w-[80%]">
-            <SearchBox @itemSearch="itemFrontEndSearch" />
+            <SearchBox @item-search="itemFrontEndSearch" />
           </div>
         </div>
 
@@ -443,7 +444,7 @@ function handleAddItem(itemIconGroupId?: number) {
                   <div v-if="itemGroup.items.length === 0" class="not-drag">
                     <AppIcon
                       :class="itemGroup.sortStatus ? 'cursor-move' : 'cursor-pointer'"
-                      :item-info="{ icon: { itemType: 3, text: 'subway:add' }, title: t('common.add'), url: '', openMethod: 0 }"
+                      :item-info="{ icon: { itemType: 1, text: '+' }, title: t('common.add'), url: '', openMethod: 0 }"
                       :icon-text-color="panelState.panelConfig.iconTextColor"
                       :icon-text-info-hide-description="panelState.panelConfig.iconTextInfoHideDescription || false"
                       :icon-text-icon-hide-title="panelState.panelConfig.iconTextIconHideTitle || false"
@@ -480,7 +481,7 @@ function handleAddItem(itemIconGroupId?: number) {
                   <div v-if="itemGroup.items.length === 0" class="not-drag">
                     <AppIcon
                       class="cursor-pointer"
-                      :item-info="{ icon: { itemType: 3, text: 'subway:add' }, title: $t('common.add'), url: '', openMethod: 0 }"
+                      :item-info="{ icon: { itemType: 1, text: '+' }, title: $t('common.add'), url: '', openMethod: 0 }"
                       :icon-text-color="panelState.panelConfig.iconTextColor"
                       :icon-text-info-hide-description="!panelState.panelConfig.iconTextInfoHideDescription"
                       :icon-text-icon-hide-title="panelState.panelConfig.iconTextIconHideTitle || false"

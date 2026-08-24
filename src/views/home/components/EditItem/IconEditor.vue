@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { NButton, NColorPicker, NInput, NRadio, NUpload } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { computed, defineProps } from 'vue'
+import { computed, defineProps, ref } from 'vue'
+import IconPickerModal from './IconPickerModal.vue'
 import { ItemIcon } from '@/components/common'
 import { useAuthStore } from '@/store'
 import { apiRespErrMsg } from '@/utils/request/apiMessage'
@@ -16,14 +17,14 @@ const authStore = useAuthStore()
 
 // 默认图标背景色
 const defautSwatchesBackground = [
-  '#00000000',  // 全透明
-  '#2a2a2a6b',  // 半透明
-  '#ffffff',    // 白色
-  '#607D8B',    // 蓝灰色
-  '#4DB6AC',    // 薄荷绿
-  '#9575CD',    // 薰衣草紫
-  '#EF5350',    // 珊瑚红
-  '#FFB300',    // 琥珀色
+  '#00000000', // 全透明
+  '#2a2a2a6b', // 半透明
+  '#ffffff', // 白色
+  '#607D8B', // 蓝灰色
+  '#4DB6AC', // 薄荷绿
+  '#9575CD', // 薰衣草紫
+  '#EF5350', // 珊瑚红
+  '#FFB300', // 琥珀色
 ]
 
 const initData: Panel.ItemIcon = {
@@ -57,6 +58,13 @@ function handleChange() {
 
 function handleResetBackgroundColor() {
   itemIconInfo.value.backgroundColor = initData.backgroundColor
+  handleChange()
+}
+
+const presetIconShow = ref(false)
+
+function handlePresetIconSelect(src: string) {
+  itemIconInfo.value.src = src
   handleChange()
 }
 
@@ -102,15 +110,6 @@ const handleUploadFinish = ({
       >
         {{ $t('common.image') }}
       </NRadio>
-
-      <NRadio
-        :checked="itemIconInfo.itemType === 3"
-        :value="3"
-        name="iconType"
-        @change="handleIconTypeRadioChange(3)"
-      >
-        {{ $t('iconItem.onlineIcon') }}
-      </NRadio>
     </div>
 
     <div class=" h-[100px]">
@@ -125,16 +124,6 @@ const handleUploadFinish = ({
           <!-- <NImage :src="model.icon" preview-disabled /> -->
           <div v-if="itemIconInfo.itemType === 1">
             <NInput v-model:value="itemIconInfo.text" class="mb-[5px]" size="small" type="text" @input="handleChange" />
-          </div>
-
-          <div v-if="itemIconInfo.itemType === 3">
-            <div>
-              <NInput v-model:value="itemIconInfo.text" class="mb-[5px]" size="small" type="text" :placeholder="$t('iconItem.inputIconName')" @input="handleChange" />
-
-              <NButton quaternary type="info">
-                <a target="_blank" href="https://icon-sets.iconify.design/">{{ $t('iconItem.onlineIconLibrary') }}</a>
-              </NButton>
-            </div>
           </div>
 
           <!-- 图片 -->
@@ -153,6 +142,10 @@ const handleUploadFinish = ({
                 {{ $t('iconItem.selectUpload') }}
               </NButton>
             </NUpload>
+
+            <NButton class="ml-[5px]" size="small" type="info" @click="presetIconShow = true">
+              {{ $t('iconItem.presetIcon') }}
+            </NButton>
           </div>
         </div>
       </div>
@@ -178,6 +171,8 @@ const handleUploadFinish = ({
         </div>
       </div>
     </div>
+
+    <IconPickerModal v-model:show="presetIconShow" @confirm="handlePresetIconSelect" />
   </div>
 </template>
 

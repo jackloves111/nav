@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { NAvatar, NImage } from 'naive-ui'
 import { computed, ref, withDefaults } from 'vue'
-import { SvgIconOnline } from '@/components/common'
 
 interface Prop {
   itemIcon?: Panel.ItemIcon | null
@@ -81,12 +80,6 @@ const textFontSize = computed(() => {
             <img :src="itemIcon?.src" class="w-[35px] h-[35px]">
           </div>
           <NImage v-else :style="{ backgroundColor: (forceBackground ?? itemIcon?.backgroundColor) || defaultBackground, ...defaultStyle }" :src="itemIcon?.src" preview-disabled />
-        </template>
-
-        <template v-else-if="itemIcon?.itemType === 3">
-          <NAvatar :size="props.size" :style="{ backgroundColor: (forceBackground ?? itemIcon?.backgroundColor) || defaultBackground }">
-            <SvgIconOnline style="font-size: 35px;" :icon="itemIcon.text" />
-          </NAvatar>
         </template>
       </template>
 
