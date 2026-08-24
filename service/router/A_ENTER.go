@@ -26,6 +26,7 @@ func InitRouters(addr string) error {
 		webPath := "./web"
 		router.StaticFile("/", webPath+"/index.html")
 		router.Static("/assets", webPath+"/assets")
+		router.Static("/presetIcons", webPath+"/presetIcons")
 		router.Static("/custom", global.Config.GetValueString("base", "custom_style_path"))
 		router.StaticFile("/favicon.ico", webPath+"/favicon.ico")
 		router.StaticFile("/favicon.svg", webPath+"/favicon.svg")
