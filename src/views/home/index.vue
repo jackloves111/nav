@@ -48,14 +48,24 @@ const settingModalShow = ref(false)
 const items = ref<ItemGroup[]>([])
 const filterItems = ref<ItemGroup[]>([])
 
-function openPage(openMethod: number, url: string, title?: string) {
+function openPage(openMethod: number, url: string, title?: string, mode?: PanelStateNetworkModeEnum) {
   switch (openMethod) {
     case 1:
       window.location.href = url
       break
-    case 2:
-      window.open(url)
+    case 2: {
+      // 先打开站内中转页显示目标地址，再立即跳转，避免新标签页停留在 about:blank
+      const href = router.resolve({
+        name: 'jump',
+        query: {
+          url,
+          title: title || '',
+          mode: mode === PanelStateNetworkModeEnum.wan ? 'wan' : 'lan',
+        },
+      }).href
+      window.open(href, '_blank')
       break
+    }
     case 3:
       windowShow.value = true
       windowSrc.value = url
@@ -90,7 +100,7 @@ function handleItemClick(itemGroupIndex: number, item: Panel.ItemInfo) {
 
   const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
 
-  openPage(item.openMethod, jumpUrl, item.title)
+  openPage(item.openMethod, jumpUrl || '', item.title, panelState.networkMode)
 }
 
 function handWindowIframeIdLoad() {
@@ -135,15 +145,15 @@ function handleRightMenuSelect(key: string | number) {
   const jumpUrl = baseUrl?.replace(/127\.0\.0\.1/g, window.location.hostname)
   switch (key) {
     case 'newWindows':
-      window.open(jumpUrl)
+      openPage(2, jumpUrl || '', currentRightSelectItem.value?.title, panelState.networkMode)
       break
     case 'openWanUrl':
       if (currentRightSelectItem.value)
-        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value?.url, currentRightSelectItem.value?.title)
+        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value?.url || '', currentRightSelectItem.value?.title, PanelStateNetworkModeEnum.wan)
       break
     case 'openLanUrl':
       if (currentRightSelectItem.value && currentRightSelectItem.value.lanUrl)
-        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname), currentRightSelectItem.value?.title)
+        openPage(currentRightSelectItem.value?.openMethod, currentRightSelectItem.value.lanUrl.replace(/127\.0\.0\.1/g, window.location.hostname), currentRightSelectItem.value?.title, PanelStateNetworkModeEnum.lan)
       break
     case 'edit':
       // 这里有个奇怪的问题，如果不使用{...}的方式 父组件的值会同步修改 标记一下
