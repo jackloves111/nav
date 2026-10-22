@@ -59,10 +59,10 @@ export default defineConfig((env) => {
       commonjsOptions: {
         ignoreTryCatch: false,
       },
-      terserOptions: {
-        compress: {
-          drop_console: true,
-        },
+      // Vite 4 默认使用 esbuild 压缩，terserOptions 不会生效；
+      // 改用 esbuild 的 drop 移除 console 与 debugger。
+      esbuild: {
+        drop: ['console', 'debugger'],
       },
     },
   }

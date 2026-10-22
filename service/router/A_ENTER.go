@@ -13,6 +13,7 @@ import (
 // 初始化总路由
 func InitRouters(addr string) error {
 	router := gin.Default()
+	router.Use(staticCacheMiddleware(), gzipStaticMiddleware())
 	rootRouter := router.Group("/")
 	routerGroup := rootRouter.Group("api")
 
