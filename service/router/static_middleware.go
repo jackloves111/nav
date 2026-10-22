@@ -72,15 +72,35 @@ func gzipStaticMiddleware() gin.HandlerFunc {
 type gzipResponseWriter struct {
 	gin.ResponseWriter
 	gz          *gzip.Writer
-	headerSent  bool
+	status      int
+	wroteHeader bool
 	compressing bool
 }
 
+// WriteHeader 只记录状态，不立即写到底层。
+// Gin 的 StaticFS 会先写一个默认的 404，随后 http.FileServer 会用 200 覆盖它；
+// 如果在这里锁死第一次的状态，静态资源就会全部返回 404。
 func (w *gzipResponseWriter) WriteHeader(code int) {
-	if w.headerSent {
+	if w.wroteHeader {
 		return
 	}
-	w.headerSent = true
+	w.status = code
+}
+
+func (w *gzipResponseWriter) WriteHeaderNow() {
+	w.writeHeader()
+}
+
+func (w *gzipResponseWriter) writeHeader() {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
+
+	code := w.status
+	if code == 0 {
+		code = http.StatusOK
+	}
 
 	// 只压缩正常的 200 响应；304/206/重定向等保持原样。
 	if code != http.StatusOK || w.Header().Get("Content-Encoding") != "" {
@@ -100,16 +120,8 @@ func (w *gzipResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func (w *gzipResponseWriter) WriteHeaderNow() {
-	if !w.headerSent {
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
 func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	if !w.headerSent {
-		w.WriteHeader(http.StatusOK)
-	}
+	w.writeHeader()
 	if !w.compressing {
 		return w.ResponseWriter.Write(b)
 	}
@@ -120,7 +132,16 @@ func (w *gzipResponseWriter) WriteString(s string) (int, error) {
 	return w.Write([]byte(s))
 }
 
+func (w *gzipResponseWriter) Flush() {
+	w.writeHeader()
+	if w.compressing {
+		_ = w.gz.Flush()
+	}
+	w.ResponseWriter.Flush()
+}
+
 func (w *gzipResponseWriter) close() {
+	w.writeHeader()
 	if w.compressing {
 		_ = w.gz.Close()
 	}
